@@ -1,0 +1,1859 @@
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:camera/camera.dart';
+
+void main() {
+  runApp(const HIWApp());
+}
+
+class HIWApp extends StatelessWidget {
+  const HIWApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'HIW – Health Is Wealth',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.teal,
+        brightness: Brightness.light,
+      ),
+      home: const MainShell(),
+    );
+  }
+}
+
+//
+// ======================= MAIN SHELL =======================
+//
+
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int _currentIndex = 2; // Center = Scanner
+
+  // Avatar stats (will be calculated from food history later)
+  double avatarHealthPercent = 72;
+  double avatarEnergyPercent = 65;
+  double avatarStaminaPercent = 58;
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      const ChatbotScreen(),
+      FoodPurchaseScreen(onUpdateAvatar: _updateAvatarFromFood),
+      ScannerScreen(
+        onMockScanResult: _handleMockScanResult,
+      ),
+      HistoryScreen(
+        weeklyHealthy: 70,
+        weeklyJunk: 30,
+        monthlyHealthy: 62,
+        monthlyJunk: 38,
+        proteinPercent: 25,
+        carbPercent: 55,
+        caloriesPercent: 20,
+      ),
+      AvatarScreen(
+        healthPercent: avatarHealthPercent,
+        energyPercent: avatarEnergyPercent,
+        staminaPercent: avatarStaminaPercent,
+      ),
+    ];
+
+    return Scaffold(
+      // Glass-like top bar
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: AppBar(
+              elevation: 0,
+              backgroundColor: Colors.white.withOpacity(0.12),
+              surfaceTintColor: Colors.transparent,
+              centerTitle: true,
+              title: const Text(
+                'HIW',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: pages[_currentIndex],
+      bottomNavigationBar: _GlassBottomNavBar(
+        currentIndex: _currentIndex,
+        onChanged: (i) => setState(() => _currentIndex = i),
+      ),
+    );
+  }
+
+  void _handleMockScanResult({
+    required double healthGain,
+    required double energyGain,
+    required double staminaGain,
+  }) {
+    // Later: compute from real ML results & meal category
+    setState(() {
+      avatarHealthPercent =
+          (avatarHealthPercent + healthGain).clamp(0, 100).toDouble();
+      avatarEnergyPercent =
+          (avatarEnergyPercent + energyGain).clamp(0, 100).toDouble();
+      avatarStaminaPercent =
+          (avatarStaminaPercent + staminaGain).clamp(0, 100).toDouble();
+    });
+  }
+
+  void _updateAvatarFromFood({
+    required double weeklyHealth,
+    required double weeklyEnergy,
+    required double weeklyStamina,
+  }) {
+    setState(() {
+      avatarHealthPercent = weeklyHealth;
+      avatarEnergyPercent = weeklyEnergy;
+      avatarStaminaPercent = weeklyStamina;
+    });
+  }
+}
+
+//
+// ------------------ GLASS BOTTOM NAV ------------------
+//
+
+class _GlassBottomNavBar extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onChanged;
+
+  const _GlassBottomNavBar({
+    required this.currentIndex,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _NavItem(icon: Icons.smart_toy_outlined, label: 'Chatbot'),
+      _NavItem(icon: Icons.shopping_bag_outlined, label: 'Food'),
+      _NavItem(icon: Icons.camera_alt_outlined, label: 'HIW'),
+      _NavItem(icon: Icons.history, label: 'History'),
+      _NavItem(icon: Icons.person_outline, label: 'Avatar'),
+    ];
+
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.12),
+                Colors.white.withOpacity(0.05),
+              ],
+            ),
+            border: Border(
+              top: BorderSide(
+                color: Colors.white.withOpacity(0.2),
+              ),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(items.length, (index) {
+              final isActive = index == currentIndex;
+              final item = items[index];
+
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => onChanged(index),
+                  behavior: HitTestBehavior.opaque,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(
+                        begin: 1.0, end: isActive ? 1.15 : 1.0),
+                    duration: const Duration(milliseconds: 200),
+                    builder: (context, scale, _) {
+                      final color = isActive
+                          ? Colors.tealAccent
+                          : Colors.grey.shade600;
+
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Transform.scale(
+                            scale: scale,
+                            child: Icon(
+                              item.icon,
+                              size: 24,
+                              color: color,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            item.label,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: color,
+                              fontWeight: isActive
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem {
+  final IconData icon;
+  final String label;
+
+  _NavItem({required this.icon, required this.label});
+}
+
+//
+// ======================= CHATBOT SCREEN =======================
+//
+
+class ChatbotScreen extends StatefulWidget {
+  const ChatbotScreen({super.key});
+
+  @override
+  State<ChatbotScreen> createState() => _ChatbotScreenState();
+}
+
+class _ChatbotScreenState extends State<ChatbotScreen> {
+  final TextEditingController _controller = TextEditingController();
+  final List<String> _messages = [];
+  int _questionsLeft = 3;
+
+  void _sendMessage() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+
+    if (_questionsLeft <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'You used all 3 questions for today. Come back tomorrow!',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _messages.add('You: $text');
+      _controller.clear();
+      _questionsLeft--;
+
+      // Placeholder reply
+      _messages.add(
+          'IGRIS: Demo reply here. Later I will use your HIW data + ML.');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF050814), Color(0xFF02040A)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'IGRIS Chatbot',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  Chip(
+                    label: Text(
+                      'Q left: $_questionsLeft',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _messages.length,
+                itemBuilder: (context, index) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    _messages[index],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Ask IGRIS (3 per day)...',
+                        hintStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.08),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(
+                            color: Colors.white.withOpacity(0.2),
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _sendMessage,
+                    icon: const Icon(Icons.send),
+                    color: Colors.tealAccent,
+                  )
+                ],
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+//
+// ======================= FOOD + PURCHASES SCREEN =======================
+//
+
+class FoodPurchaseScreen extends StatefulWidget {
+  final void Function({
+    required double weeklyHealth,
+    required double weeklyEnergy,
+    required double weeklyStamina,
+  }) onUpdateAvatar;
+
+  const FoodPurchaseScreen({super.key, required this.onUpdateAvatar});
+
+  @override
+  State<FoodPurchaseScreen> createState() => _FoodPurchaseScreenState();
+}
+
+class _FoodPurchaseScreenState extends State<FoodPurchaseScreen> {
+  bool tableArranged = false;
+  bool chatbotAsked = false;
+
+  // Dummy data (later replace with real scanned / purchased)
+  final veggies = ['Tomato', 'Onion', 'Carrot', 'Cucumber', 'Coriander'];
+  final fruits = ['Apple', 'Banana', 'Pomegranate'];
+  final others = ['Rice', 'Oil', 'Curd'];
+
+  // Demo nutrition
+  final carbsPercent = 55.0;
+  final proteinPercent = 25.0;
+  final fatsPercent = 20.0;
+
+  void _handleArrangeTable() {
+    setState(() {
+      tableArranged = true;
+      chatbotAsked = false;
+    });
+  }
+
+  void _handleAskChatbot() {
+    if (!tableArranged) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('First run STEP 1 to arrange your table.'),
+        ),
+      );
+      return;
+    }
+    setState(() {
+      chatbotAsked = true;
+    });
+  }
+
+  Future<void> _openYouTubeRecipes() async {
+    final allIngredients = [...veggies, ...fruits, ...others]
+        .join(' ')
+        .replaceAll(' ', '+');
+
+    final url = Uri.parse(
+        'https://www.youtube.com/results?search_query=$allIngredients+healthy+recipe');
+
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _pushToAvatar() {
+    // Simple mapping from nutrition demo
+    widget.onUpdateAvatar(
+      weeklyHealth: 78,
+      weeklyEnergy: 72,
+      weeklyStamina: 68,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Avatar updated with today\'s nutrition pattern.'),
+      ),
+    );
+  }
+
+  void _openShoppingScreen() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShoppingRecommendationsScreen(
+          veggies: veggies,
+          fruits: fruits,
+          others: others,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF050814), Color(0xFF02040A)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
+            const Text(
+              'HIW Food & Purchases',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Today’s purchases + quick nutrition estimation.',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.75),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Step chips row
+            Row(
+              children: [
+                _stepChip(
+                  label: '1 Purchases',
+                  active: tableArranged || chatbotAsked,
+                ),
+                const SizedBox(width: 8),
+                _stepChip(
+                  label: '2 Chatbot Recipe',
+                  active: chatbotAsked,
+                ),
+                const SizedBox(width: 8),
+                _stepChip(
+                  label: '3 Nutrition',
+                  active: true,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 18),
+
+            // My Purchases card
+            _glassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'My Purchases Today',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Veggies, fruits and other items grouped for HIW.',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.75),
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (tableArranged) _buildPurchasesTable(),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _primaryStepButton(
+                          label: 'STEP 1 · Arrange Table',
+                          onTap: _handleArrangeTable,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _secondaryStepButton(
+                          label: 'STEP 2 · Ask Chatbot',
+                          onTap: _handleAskChatbot,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (chatbotAsked) ...[
+                    const SizedBox(height: 16),
+                    const Divider(
+                      color: Colors.white24,
+                      height: 24,
+                    ),
+                    const Text(
+                      'IGRIS Suggests: Tomato Veggie Bowl',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _bullet('Base: cooked rice + curd'),
+                    _bullet('Toss: tomato, onion, cucumber, coriander'),
+                    _bullet('Season: a little oil, salt, pepper, lemon'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Quick 10-min bowl that is light, fiber-rich and good for dinner.',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    GestureDetector(
+                      onTap: _openYouTubeRecipes,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: Colors.redAccent,
+                            width: 1.3,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.play_circle_outline,
+                                color: Colors.redAccent),
+                            SizedBox(width: 8),
+                            Text(
+                              'Open related recipes on YouTube',
+                              style: TextStyle(
+                                color: Colors.redAccent,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            // Nutrition estimator
+            _glassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Food Nutrition Estimator (Demo)',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Based on today’s food pattern. Later this will use real ML + chatbot.',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.75),
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 200,
+                    child: PieChart(
+                      PieChartData(
+                        centerSpaceRadius: 55,
+                        sectionsSpace: 2,
+                        sections: [
+                          PieChartSectionData(
+                            value: carbsPercent,
+                            title: 'Carbs\n${carbsPercent.toStringAsFixed(0)}%',
+                            radius: 70,
+                          ),
+                          PieChartSectionData(
+                            value: fatsPercent,
+                            title: 'Fats\n${fatsPercent.toStringAsFixed(0)}%',
+                            radius: 70,
+                          ),
+                          PieChartSectionData(
+                            value: proteinPercent,
+                            title:
+                                'Protein\n${proteinPercent.toStringAsFixed(0)}%',
+                            radius: 70,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'IGRIS Comment (demo):',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  _bullet(
+                      'Carbs are slightly high – good for energy but avoid late night.'),
+                  _bullet(
+                      'Protein is decent, try to add 1 cup dal / paneer today.'),
+                  _bullet(
+                      'Fats are okay – keep fried items under control.'),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _primaryStepButton(
+                          label: 'Push to Avatar',
+                          onTap: _pushToAvatar,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _secondaryStepButton(
+                          label: 'Shopping View',
+                          onTap: _openShoppingScreen,
+                          icon: Icons.shopping_bag_outlined,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _bullet(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '•  ',
+            style: TextStyle(color: Colors.white),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepChip({required String label, required bool active}) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: active
+                ? Colors.tealAccent
+                : Colors.white.withOpacity(0.25),
+          ),
+          gradient: LinearGradient(
+            colors: active
+                ? [
+                    Colors.tealAccent.withOpacity(0.3),
+                    Colors.tealAccent.withOpacity(0.15),
+                  ]
+                : [
+                    Colors.white.withOpacity(0.08),
+                    Colors.white.withOpacity(0.03),
+                  ],
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: active ? Colors.white : Colors.white70,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _glassCard({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.12),
+                Colors.white.withOpacity(0.04),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.25),
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPurchasesTable() {
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        Row(
+          children: const [
+            Expanded(
+              child: Text(
+                'Veggies',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                'Fruits',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                'Others',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Divider(color: Colors.white.withOpacity(0.5), height: 1),
+        const SizedBox(height: 8),
+        // max rows = longest list
+        ...List.generate(
+          [veggies.length, fruits.length, others.length]
+              .reduce((a, b) => a > b ? a : b),
+          (i) {
+            String? v = i < veggies.length ? veggies[i] : null;
+            String? f = i < fruits.length ? fruits[i] : null;
+            String? o = i < others.length ? others[i] : null;
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      v ?? '',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      f ?? '',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      o ?? '',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _primaryStepButton({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: const LinearGradient(
+            colors: [Colors.teal, Colors.tealAccent],
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _secondaryStepButton({
+    required String label,
+    required VoidCallback onTap,
+    IconData? icon,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            colors: [
+              Colors.blueAccent.withOpacity(0.6),
+              Colors.indigo.withOpacity(0.6),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 18, color: Colors.white),
+                const SizedBox(width: 6),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+//
+// ======================= SHOPPING RECOMMENDATION PAGE =======================
+//
+
+class ShoppingRecommendationsScreen extends StatelessWidget {
+  final List<String> veggies;
+  final List<String> fruits;
+  final List<String> others;
+
+  const ShoppingRecommendationsScreen({
+    super.key,
+    required this.veggies,
+    required this.fruits,
+    required this.others,
+  });
+
+  Future<void> _openYouTubeRecipes() async {
+    final allIngredients = [...veggies, ...fruits, ...others]
+        .join(' ')
+        .replaceAll(' ', '+');
+
+    final url = Uri.parse(
+        'https://www.youtube.com/results?search_query=$allIngredients+healthy+recipe');
+
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _openWebSearch() async {
+    final allIngredients = [...veggies, ...fruits, ...others]
+        .join(' ')
+        .replaceAll(' ', '+');
+
+    final url = Uri.parse(
+        'https://www.google.com/search?q=healthy+recipes+with+$allIngredients');
+
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('HIW Shopping'),
+        centerTitle: true,
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF050814), Color(0xFF02040A)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              const Text(
+                'My Purchases Today',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'HIW groups your items and asks IGRIS / web for quick ideas.',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.75),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _ShoppingTableCard(
+                veggies: veggies,
+                fruits: fruits,
+                others: others,
+              ),
+              const SizedBox(height: 18),
+              _ShoppingSuggestionCard(
+                openYouTube: _openYouTubeRecipes,
+                openWeb: _openWebSearch,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShoppingTableCard extends StatelessWidget {
+  final List<String> veggies;
+  final List<String> fruits;
+  final List<String> others;
+
+  const _ShoppingTableCard({
+    required this.veggies,
+    required this.fruits,
+    required this.others,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final maxRows = [veggies.length, fruits.length, others.length]
+        .reduce((a, b) => a > b ? a : b);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.12),
+                Colors.white.withOpacity(0.04),
+              ],
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.25),
+            ),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: const [
+                  Expanded(
+                    child: Text(
+                      'Veggies',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Fruits',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Others',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Divider(
+                color: Colors.white.withOpacity(0.5),
+                height: 1,
+              ),
+              const SizedBox(height: 8),
+              ...List.generate(maxRows, (i) {
+                String? v = i < veggies.length ? veggies[i] : null;
+                String? f = i < fruits.length ? fruits[i] : null;
+                String? o = i < others.length ? others[i] : null;
+                return Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          v ?? '',
+                          style:
+                              const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          f ?? '',
+                          style:
+                              const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          o ?? '',
+                          style:
+                              const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShoppingSuggestionCard extends StatelessWidget {
+  final VoidCallback openYouTube;
+  final VoidCallback openWeb;
+
+  const _ShoppingSuggestionCard({
+    required this.openYouTube,
+    required this.openWeb,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.12),
+                Colors.white.withOpacity(0.04),
+              ],
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.25),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Quick Ideas from IGRIS (demo)',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const _ShoppingBullet(
+                  'Good combo for today: tomato, onion, cucumber, coriander + curd.'),
+              const _ShoppingBullet(
+                  'Try a quick salad / rice bowl instead of heavy fried food.'),
+              const _ShoppingBullet(
+                  'Use fruits as evening snack instead of biscuits.'),
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: openYouTube,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.redAccent,
+                      width: 1.3,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.play_circle_outline,
+                          color: Colors.redAccent),
+                      SizedBox(width: 8),
+                      Text(
+                        'Open recipe ideas on YouTube',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: openWeb,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.tealAccent,
+                      width: 1.1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.travel_explore,
+                          color: Colors.tealAccent),
+                      SizedBox(width: 8),
+                      Text(
+                        'Search healthy ideas on web',
+                        style: TextStyle(
+                          color: Colors.tealAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShoppingBullet extends StatelessWidget {
+  final String text;
+
+  const _ShoppingBullet(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '•  ',
+            style: TextStyle(color: Colors.white),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+//
+// ======================= SCANNER SCREEN (camera + emoji) =======================
+//
+
+class ScannerScreen extends StatefulWidget {
+  final void Function({
+    required double healthGain,
+    required double energyGain,
+    required double staminaGain,
+  }) onMockScanResult;
+
+  const ScannerScreen({
+    super.key,
+    required this.onMockScanResult,
+  });
+
+  @override
+  State<ScannerScreen> createState() => _ScannerScreenState();
+}
+
+class _ScannerScreenState extends State<ScannerScreen>
+    with SingleTickerProviderStateMixin {
+  CameraController? controller;
+  bool cameraReady = false;
+
+  String foodType = "";
+  String freshness = "";
+  double confidence = 0.0;
+
+  late AnimationController emojiController;
+  late Animation<double> emojiScale;
+
+  @override
+  void initState() {
+    super.initState();
+
+    emojiController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+
+    emojiScale = Tween<double>(begin: 0.75, end: 1.15).animate(
+      CurvedAnimation(parent: emojiController, curve: Curves.easeInOut),
+    );
+
+    // Slight delay so activity fully visible before camera opens
+    Future.delayed(const Duration(milliseconds: 350), () {
+      if (mounted) _initCamera();
+    });
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cams = await availableCameras();
+      controller = CameraController(
+        cams.first,
+        ResolutionPreset.medium,
+        enableAudio: false,
+      );
+      await controller!.initialize();
+      if (!mounted) return;
+      setState(() => cameraReady = true);
+    } catch (e) {
+      debugPrint('Camera error: $e');
+      if (mounted) setState(() => cameraReady = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    emojiController.dispose();
+    super.dispose();
+  }
+
+  Color get glowColor {
+    if (freshness == "fresh") return Colors.green.withOpacity(0.35);
+    if (freshness == "rotten") return Colors.red.withOpacity(0.35);
+    if (foodType == "Healthy") return Colors.teal.withOpacity(0.35);
+    if (foodType == "Junk") return Colors.pink.withOpacity(0.35);
+    return Colors.grey.withOpacity(0.2);
+  }
+
+  String get emoji {
+    if (freshness == "fresh") return "😋";
+    if (freshness == "rotten") return "🤢";
+    if (foodType == "Healthy") return "😊";
+    if (foodType == "Junk") return "😞";
+    return "🤔";
+  }
+
+  void _mockScan() {
+    setState(() {
+      confidence = 98;
+
+      final results = [
+        ["Vegetable", "fresh"],
+        ["Vegetable", "rotten"],
+        ["Healthy", ""],
+        ["Junk", ""],
+      ];
+
+      final r = results[DateTime.now().millisecond % results.length];
+      foodType = r[0];
+      freshness = r[1];
+
+      widget.onMockScanResult(
+        healthGain: freshness == "fresh" ? 5 : -2,
+        energyGain: freshness == "fresh" ? 4 : -3,
+        staminaGain: freshness == "fresh" ? 3 : -2,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              glowColor,
+              Colors.black.withOpacity(0.9),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.max,
+              children: [
+                const SizedBox(height: 10),
+                const Text(
+                  "HIW Scanner",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ScaleTransition(
+                  scale: emojiScale,
+                  child: Text(
+                    emoji,
+                    style: const TextStyle(fontSize: 48),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: cameraReady
+                          ? CameraPreview(controller!)
+                          : Container(
+                              color: Colors.black45,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (foodType.isNotEmpty)
+                  _scanGlassBox("Food Type", foodType.toUpperCase()),
+                if (freshness.isNotEmpty)
+                  _scanGlassBox("Freshness", freshness.toUpperCase()),
+                if (confidence > 0)
+                  _scanGlassBox(
+                      "Confidence", "${confidence.toStringAsFixed(0)}%"),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: _mockScan,
+                  child: ClipOval(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.white.withOpacity(0.25),
+                              Colors.white.withOpacity(0.08),
+                            ],
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.4),
+                            width: 3,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 34,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _scanGlassBox(String label, String value) {
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.18),
+                  Colors.white.withOpacity(0.06),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+              ),
+            ),
+            child: Text(
+              "$label: $value",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+//
+// ======================= HISTORY SCREEN =======================
+//
+
+class HistoryScreen extends StatelessWidget {
+  final double weeklyHealthy;
+  final double weeklyJunk;
+  final double monthlyHealthy;
+  final double monthlyJunk;
+  final double proteinPercent;
+  final double carbPercent;
+  final double caloriesPercent;
+
+  const HistoryScreen({
+    super.key,
+    required this.weeklyHealthy,
+    required this.weeklyJunk,
+    required this.monthlyHealthy,
+    required this.monthlyJunk,
+    required this.proteinPercent,
+    required this.carbPercent,
+    required this.caloriesPercent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          'HIW History & Stats',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        _pieCard(
+          context,
+          title: 'Weekly: Healthy vs Junk',
+          sections: [
+            PieChartSectionData(
+              value: weeklyHealthy,
+              title: 'Healthy\n${weeklyHealthy.toStringAsFixed(0)}%',
+            ),
+            PieChartSectionData(
+              value: weeklyJunk,
+              title: 'Junk\n${weeklyJunk.toStringAsFixed(0)}%',
+            ),
+          ],
+        ),
+        _pieCard(
+          context,
+          title: 'Monthly: Healthy vs Junk',
+          sections: [
+            PieChartSectionData(
+              value: monthlyHealthy,
+              title: 'Healthy\n${monthlyHealthy.toStringAsFixed(0)}%',
+            ),
+            PieChartSectionData(
+              value: monthlyJunk,
+              title: 'Junk\n${monthlyJunk.toStringAsFixed(0)}%',
+            ),
+          ],
+        ),
+        _pieCard(
+          context,
+          title: 'Approx Nutrition Split (Weekly)',
+          sections: [
+            PieChartSectionData(
+              value: proteinPercent,
+              title: 'Protein\n${proteinPercent.toStringAsFixed(0)}%',
+            ),
+            PieChartSectionData(
+              value: carbPercent,
+              title: 'Carbs\n${carbPercent.toStringAsFixed(0)}%',
+            ),
+            PieChartSectionData(
+              value: caloriesPercent,
+              title: 'Calories\n${caloriesPercent.toStringAsFixed(0)}%',
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Below this you can show list of all scans.\n'
+          'Later: link to local DB or API.',
+        ),
+      ],
+    );
+  }
+
+  Widget _pieCard(
+    BuildContext context, {
+    required String title,
+    required List<PieChartSectionData> sections,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 180,
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 30,
+                  sections: sections,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+//
+// ======================= AVATAR / SETTINGS / MINIGAME =======================
+//
+
+class AvatarScreen extends StatelessWidget {
+  final double healthPercent;
+  final double energyPercent;
+  final double staminaPercent;
+
+  const AvatarScreen({
+    super.key,
+    required this.healthPercent,
+    required this.energyPercent,
+    required this.staminaPercent,
+  });
+
+  AvatarStage _avatarStage(double percent) {
+    if (percent >= 80) return AvatarStage.veryHealthy;
+    if (percent >= 60) return AvatarStage.healthy;
+    if (percent >= 40) return AvatarStage.normal;
+    return AvatarStage.unhealthy;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = _avatarStage(healthPercent);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('HIW Avatar'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            },
+          )
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Center(
+            child: Stack(
+              children: [
+                // Placeholder "3D" container – later embed actual GLB viewer
+                Container(
+                  width: 180,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: _gradientForStage(stage),
+                    border: Border.all(
+                      color: Colors.teal.shade700,
+                      width: 2,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      '3D Avatar\n(placeholder)\n\nLater: GLB model\nrotating here.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: FloatingActionButton.small(
+                    heroTag: 'game_button',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MiniGameScreen(),
+                        ),
+                      );
+                    },
+                    child: const Icon(Icons.videogame_asset),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              'Health: ${healthPercent.toStringAsFixed(0)}%',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Center(
+            child: Text('Energy: ${energyPercent.toStringAsFixed(0)}%'),
+          ),
+          Center(
+            child: Text('Stamina: ${staminaPercent.toStringAsFixed(0)}%'),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: Text(
+              'Stage: ${stage.name.toUpperCase()}',
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Later we will:\n'
+            '• Replace this box with real 3D GLB avatar\n'
+            '• Animate based on health, energy, stamina\n'
+            '• Change body, skin glow, clothes, etc.',
+            textAlign: TextAlign.left,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Gradient _gradientForStage(AvatarStage stage) {
+    switch (stage) {
+      case AvatarStage.unhealthy:
+        return const LinearGradient(colors: [Colors.grey, Colors.red]);
+      case AvatarStage.normal:
+        return const LinearGradient(colors: [Colors.blueGrey, Colors.green]);
+      case AvatarStage.healthy:
+        return const LinearGradient(colors: [Colors.green, Colors.teal]);
+      case AvatarStage.veryHealthy:
+        return const LinearGradient(
+          colors: [Colors.teal, Colors.lightGreenAccent],
+        );
+    }
+  }
+}
+
+enum AvatarStage { unhealthy, normal, healthy, veryHealthy }
+
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Settings'),
+      ),
+      body: ListView(
+        children: const [
+          ListTile(
+            leading: Icon(Icons.language),
+            title: Text('Language'),
+          ),
+          ListTile(
+            leading: Icon(Icons.dark_mode),
+            title: Text('Theme'),
+          ),
+          ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text('App & Model Info'),
+          ),
+          ListTile(
+            leading: Icon(Icons.logout),
+            title: Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MiniGameScreen extends StatelessWidget {
+  const MiniGameScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mini Game'),
+      ),
+      body: const Center(
+        child: Text(
+          'Your garden / food mini game will appear here.\n'
+          'Cooldown and growth logic added later.',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}

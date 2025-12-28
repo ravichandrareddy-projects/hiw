@@ -1,0 +1,671 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const HIWApp());
+}
+
+class HIWApp extends StatelessWidget {
+  const HIWApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'HIW – Health Is Wealth',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.teal,
+        brightness: Brightness.light,
+      ),
+      home: const MainShell(),
+    );
+  }
+}
+
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int _currentIndex = 2; // Center = Scanner
+  double avatarHealthPercent = 62;
+  int _secretTapCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      ChatbotScreen(onSecretTap: _handleSecretTap),
+      const FoodPurchaseScreen(),
+      ScannerScreen(onSecretTap: _handleSecretTap),
+      const HistoryScreen(),
+      AvatarScreen(
+        healthPercent: avatarHealthPercent,
+        onHealthChange: (value) {
+          setState(() => avatarHealthPercent = value);
+        },
+      ),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: GestureDetector(
+          onLongPress: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const ConsoleMenuScreen(),
+              ),
+            );
+          },
+          child: const Text(
+            'HIW',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: pages[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        type: BottomNavigationBarType.fixed,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+            _secretTapCount = 0;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.smart_toy_outlined),
+            label: 'Chatbot',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_basket_outlined),
+            label: 'Food',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.camera_alt_outlined),
+            label: 'HIW',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history),
+            label: 'History',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: 'Avatar',
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSecretTap() {
+    setState(() {
+      _secretTapCount++;
+      if (_secretTapCount >= 5) {
+        _secretTapCount = 0;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const ConsoleMenuScreen(),
+          ),
+        );
+      }
+    });
+  }
+}
+
+// -------------------- CHATBOT SCREEN --------------------
+
+class ChatbotScreen extends StatelessWidget {
+  final VoidCallback onSecretTap;
+  const ChatbotScreen({super.key, required this.onSecretTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text(
+            'IGRIS Chatbot',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const Expanded(
+          child: Center(
+            child: Text(
+              'Chat UI comes here (messages, bubbles, mic button, etc.)',
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Ask IGRIS anything...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: onSecretTap,
+                icon: const Icon(Icons.send),
+              )
+            ],
+          ),
+        )
+      ],
+    );
+  }
+}
+
+// -------------------- FOOD / PURCHASE SCREEN --------------------
+
+class FoodPurchaseScreen extends StatelessWidget {
+  const FoodPurchaseScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          'Food & Purchase',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Breakfast / Lunch / Dinner categories\n'
+          'Later: connect this to your dataset + smart suggestions.',
+        ),
+        const SizedBox(height: 24),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _pill('Breakfast'),
+            _pill('Lunch'),
+            _pill('Dinner'),
+            _pill('Snacks'),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'Purchase section (future): show items, partner links, etc.',
+        )
+      ],
+    );
+  }
+
+  Widget _pill(String label) {
+    return Chip(
+      label: Text(label),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    );
+  }
+}
+
+// -------------------- SCANNER SCREEN --------------------
+
+class ScannerScreen extends StatelessWidget {
+  final VoidCallback onSecretTap;
+  const ScannerScreen({super.key, required this.onSecretTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text(
+            'HIW Scanner',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ),
+        Expanded(
+          child: GestureDetector(
+            onLongPress: onSecretTap,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
+              child: const Center(
+                child: Text(
+                  'Camera View / ML model output here',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.teal.withOpacity(0.08),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Detection Result',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text('Food: idly'),
+              Text('Category: Breakfast'),
+              Text('Freshness: 93% (Fresh)'),
+            ],
+          ),
+        )
+      ],
+    );
+  }
+}
+
+// -------------------- HISTORY SCREEN --------------------
+
+class HistoryScreen extends StatelessWidget {
+  const HistoryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 8,
+      itemBuilder: (context, index) {
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            leading: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.grey.shade200,
+              ),
+              child: const Icon(Icons.fastfood),
+            ),
+            title: Text('Food item #$index'),
+            subtitle: const Text('Freshness: 80% · Breakfast'),
+            trailing: const Icon(Icons.chevron_right),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// -------------------- AVATAR + GAME BUTTON --------------------
+
+enum AvatarStyle { softAnime, semiReal, chibi, simpleCartoon }
+enum AvatarGender { male, female }
+enum AvatarStage { unhealthy, normal, healthy, veryHealthy }
+
+class AvatarScreen extends StatefulWidget {
+  final double healthPercent;
+  final ValueChanged<double> onHealthChange;
+
+  const AvatarScreen({
+    super.key,
+    required this.healthPercent,
+    required this.onHealthChange,
+  });
+
+  @override
+  State<AvatarScreen> createState() => _AvatarScreenState();
+}
+
+class _AvatarScreenState extends State<AvatarScreen> {
+  AvatarStyle _style = AvatarStyle.softAnime;
+  AvatarGender _gender = AvatarGender.male;
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = _avatarStage(widget.healthPercent);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('HIW Avatar'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            },
+          )
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Center(
+            child: Stack(
+              children: [
+                Container(
+                  width: 160,
+                  height: 160,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: _gradientForStage(stage),
+                    border: Border.all(
+                      color: Colors.teal.shade700,
+                      width: 2,
+                    ),
+                  ),
+                  child: Center(
+                    child: _avatarIcon(stage, _gender),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: FloatingActionButton.small(
+                    heroTag: 'game_button',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MiniGameScreen(),
+                        ),
+                      );
+                    },
+                    child: const Icon(Icons.videogame_asset),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              'Health based on food: ${widget.healthPercent.toStringAsFixed(0)}%',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Slider(
+            value: widget.healthPercent.clamp(0, 100),
+            min: 0,
+            max: 100,
+            onChanged: widget.onHealthChange,
+          ),
+          Center(
+            child: Text(
+              'Stage: ${stage.name.toUpperCase()}',
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+          const Divider(height: 32),
+          const Text(
+            'Choose Gender',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: RadioListTile<AvatarGender>(
+                  title: const Text('Male'),
+                  value: AvatarGender.male,
+                  groupValue: _gender,
+                  onChanged: (value) {
+                    if (value != null) setState(() => _gender = value);
+                  },
+                ),
+              ),
+              Expanded(
+                child: RadioListTile<AvatarGender>(
+                  title: const Text('Female'),
+                  value: AvatarGender.female,
+                  groupValue: _gender,
+                  onChanged: (value) {
+                    if (value != null) setState(() => _gender = value);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Choose Avatar Style',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Column(
+            children: [
+              RadioListTile(
+                title: const Text('Soft Anime'),
+                value: AvatarStyle.softAnime,
+                groupValue: _style,
+                onChanged: (val) => setState(() => _style = val!),
+              ),
+              RadioListTile(
+                title: const Text('Semi-realistic Anime'),
+                value: AvatarStyle.semiReal,
+                groupValue: _style,
+                onChanged: (val) => setState(() => _style = val!),
+              ),
+              RadioListTile(
+                title: const Text('Chibi (Cute)'),
+                value: AvatarStyle.chibi,
+                groupValue: _style,
+                onChanged: (val) => setState(() => _style = val!),
+              ),
+              RadioListTile(
+                title: const Text('Simple Cartoon'),
+                value: AvatarStyle.simpleCartoon,
+                groupValue: _style,
+                onChanged: (val) => setState(() => _style = val!),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  AvatarStage _avatarStage(double percent) {
+    if (percent >= 80) return AvatarStage.veryHealthy;
+    if (percent >= 60) return AvatarStage.healthy;
+    if (percent >= 40) return AvatarStage.normal;
+    return AvatarStage.unhealthy;
+  }
+
+  Widget _avatarIcon(AvatarStage stage, AvatarGender gender) {
+    IconData data;
+    switch (stage) {
+      case AvatarStage.unhealthy:
+        data = Icons.sentiment_very_dissatisfied;
+        break;
+      case AvatarStage.normal:
+        data = Icons.sentiment_neutral;
+        break;
+      case AvatarStage.healthy:
+        data = Icons.sentiment_satisfied;
+        break;
+      case AvatarStage.veryHealthy:
+        data = Icons.sentiment_very_satisfied;
+        break;
+    }
+    return Icon(
+      data,
+      size: 72,
+      color: Colors.white,
+    );
+  }
+
+  Gradient _gradientForStage(AvatarStage stage) {
+    switch (stage) {
+      case AvatarStage.unhealthy:
+        return const LinearGradient(colors: [Colors.grey, Colors.red]);
+      case AvatarStage.normal:
+        return const LinearGradient(colors: [Colors.blueGrey, Colors.green]);
+      case AvatarStage.healthy:
+        return const LinearGradient(colors: [Colors.green, Colors.teal]);
+      case AvatarStage.veryHealthy:
+        return const LinearGradient(
+            colors: [Colors.teal, Colors.lightGreenAccent]);
+    }
+  }
+}
+
+// -------------------- SETTINGS SCREEN --------------------
+
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Settings'),
+      ),
+      body: ListView(
+        children: const [
+          ListTile(
+            leading: Icon(Icons.language),
+            title: Text('Language'),
+          ),
+          ListTile(
+            leading: Icon(Icons.dark_mode),
+            title: Text('Theme'),
+          ),
+          ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text('App & Model Info'),
+          ),
+          ListTile(
+            leading: Icon(Icons.logout),
+            title: Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -------------------- MINI GAME --------------------
+
+class MiniGameScreen extends StatelessWidget {
+  const MiniGameScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mini Game'),
+      ),
+      body: const Center(
+        child: Text(
+          'Your garden / food mini game will appear here.\n'
+          'Cooldown and growth logic added later.',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
+// -------------------- DEV CONSOLE --------------------
+
+class ConsoleMenuScreen extends StatefulWidget {
+  const ConsoleMenuScreen({super.key});
+
+  @override
+  State<ConsoleMenuScreen> createState() => _ConsoleMenuScreenState();
+}
+
+class _ConsoleMenuScreenState extends State<ConsoleMenuScreen> {
+  final TextEditingController _controller = TextEditingController();
+  final List<String> _logs = [];
+
+  void _runCommand(String cmd) {
+    setState(() {
+      _logs.add('> $cmd');
+
+      if (cmd == '/plant_grow') {
+        _logs.add('🌱 Plant grew by +10%.');
+      } else if (cmd == '/chaos_mode_on') {
+        _logs.add('⚠ Chaos Mode enabled.');
+      } else if (cmd == '/roast_me') {
+        _logs.add('🔥 You coded this at 3AM didn’t you?');
+      } else if (cmd == '/self_destruct') {
+        _logs.add('💣 App will totally not self-destruct. Chill.');
+      } else {
+        _logs.add(
+            'Unknown command. Available: /plant_grow, /chaos_mode_on, /roast_me, /self_destruct');
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Developer Console'),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(8),
+              itemCount: _logs.length,
+              itemBuilder: (context, index) {
+                return Text(_logs[index]);
+              },
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                      hintText: 'Type a dev command...',
+                    ),
+                    onSubmitted: (value) {
+                      if (value.trim().isNotEmpty) {
+                        _runCommand(value.trim());
+                        _controller.clear();
+                      }
+                    },
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.play_arrow),
+                  onPressed: () {
+                    final cmd = _controller.text.trim();
+                    if (cmd.isNotEmpty) {
+                      _runCommand(cmd);
+                      _controller.clear();
+                    }
+                  },
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+}

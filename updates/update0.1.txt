@@ -1,0 +1,874 @@
+import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+void main() {
+  runApp(const HIWApp());
+}
+
+class HIWApp extends StatelessWidget {
+  const HIWApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'HIW – Health Is Wealth',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.teal,
+        brightness: Brightness.light,
+      ),
+      home: const MainShell(),
+    );
+  }
+}
+
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int _currentIndex = 2; // Center = Scanner
+
+  // Avatar stats (will be calculated from food history later)
+  double avatarHealthPercent = 72;
+  double avatarEnergyPercent = 65;
+  double avatarStaminaPercent = 58;
+
+  // For console secret
+  int _secretTapCount = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      ChatbotScreen(onSecretTap: _handleSecretTap),
+      FoodPurchaseScreen(onUpdateAvatar: _updateAvatarFromFood),
+      ScannerScreen(
+        onSecretTap: _handleSecretTap,
+        onMockScanResult: _handleMockScanResult,
+      ),
+      HistoryScreen(
+        weeklyHealthy: 70,
+        weeklyJunk: 30,
+        monthlyHealthy: 62,
+        monthlyJunk: 38,
+        proteinPercent: 20,
+        carbPercent: 50,
+        caloriesPercent: 30,
+      ),
+      AvatarScreen(
+        healthPercent: avatarHealthPercent,
+        energyPercent: avatarEnergyPercent,
+        staminaPercent: avatarStaminaPercent,
+      ),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: GestureDetector(
+          onLongPress: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const ConsoleMenuScreen(),
+              ),
+            );
+          },
+          child: const Text(
+            'HIW',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: pages[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        type: BottomNavigationBarType.fixed,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+            _secretTapCount = 0;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.smart_toy_outlined),
+            label: 'Chatbot',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_basket_outlined),
+            label: 'Food',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.camera_alt_outlined),
+            label: 'HIW',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history),
+            label: 'History',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: 'Avatar',
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSecretTap() {
+    setState(() {
+      _secretTapCount++;
+      if (_secretTapCount >= 5) {
+        _secretTapCount = 0;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const ConsoleMenuScreen(),
+          ),
+        );
+      }
+    });
+  }
+
+  void _handleMockScanResult({
+    required double healthGain,
+    required double energyGain,
+    required double staminaGain,
+  }) {
+    // Later: compute from real ML results & meal category
+    setState(() {
+      avatarHealthPercent =
+          (avatarHealthPercent + healthGain).clamp(0, 100).toDouble();
+      avatarEnergyPercent =
+          (avatarEnergyPercent + energyGain).clamp(0, 100).toDouble();
+      avatarStaminaPercent =
+          (avatarStaminaPercent + staminaGain).clamp(0, 100).toDouble();
+    });
+  }
+
+  void _updateAvatarFromFood({
+    required double weeklyHealth,
+    required double weeklyEnergy,
+    required double weeklyStamina,
+  }) {
+    setState(() {
+      avatarHealthPercent = weeklyHealth;
+      avatarEnergyPercent = weeklyEnergy;
+      avatarStaminaPercent = weeklyStamina;
+    });
+  }
+}
+
+//
+// -------------------- CHATBOT SCREEN (3 Q PER DAY) --------------------
+//
+
+class ChatbotScreen extends StatefulWidget {
+  final VoidCallback onSecretTap;
+  const ChatbotScreen({super.key, required this.onSecretTap});
+
+  @override
+  State<ChatbotScreen> createState() => _ChatbotScreenState();
+}
+
+class _ChatbotScreenState extends State<ChatbotScreen> {
+  final TextEditingController _controller = TextEditingController();
+  final List<String> _messages = [];
+  int _questionsLeft = 3;
+
+  void _sendMessage() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+
+    if (_questionsLeft <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You used all 3 questions for today. Come back tomorrow!'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _messages.add('You: $text');
+      _controller.clear();
+      _questionsLeft--;
+
+      // Placeholder reply
+      _messages.add('IGRIS: I will respond based on your health data in future.');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'IGRIS Chatbot',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Chip(
+                label: Text('Q left: $_questionsLeft'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _messages.length,
+            itemBuilder: (context, index) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(_messages[index]),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  decoration: InputDecoration(
+                    hintText: 'Ask IGRIS (3 per day)...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  widget.onSecretTap(); // still can unlock console via spam
+                  _sendMessage();
+                },
+                icon: const Icon(Icons.send),
+              )
+            ],
+          ),
+        )
+      ],
+    );
+  }
+}
+
+//
+// -------------------- FOOD / PURCHASE + INGREDIENT GROUPS + RECIPES --------------------
+//
+
+class FoodPurchaseScreen extends StatelessWidget {
+  final void Function({
+    required double weeklyHealth,
+    required double weeklyEnergy,
+    required double weeklyStamina,
+  }) onUpdateAvatar;
+
+  const FoodPurchaseScreen({super.key, required this.onUpdateAvatar});
+
+  @override
+  Widget build(BuildContext context) {
+    // Dummy scanned/purchased items
+    final fruits = ['Apple', 'Banana', 'Orange'];
+    final veggies = ['Tomato', 'Potato', 'Chilli'];
+    final others = ['Rice', 'Oil', 'Curd'];
+
+    // Very rough weekly “score” based on items
+    final weeklyHealth = 75.0;
+    final weeklyEnergy = 70.0;
+    final weeklyStamina = 60.0;
+
+    void _generateRecipe() async {
+      // Simple example: open YouTube search with ingredients
+      final query =
+          (fruits + veggies + others).join(' ').replaceAll(' ', '+');
+      final url = Uri.parse('https://www.youtube.com/results?search_query=$query+recipe');
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      }
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          'Food & Purchases',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Scanned / purchased items are grouped.\n'
+          'HIW will suggest recipes based on what you have.',
+        ),
+        const SizedBox(height: 16),
+        _sectionTitle('Fruits'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: fruits.map(_pill).toList(),
+        ),
+        const SizedBox(height: 12),
+        _sectionTitle('Vegetables'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: veggies.map(_pill).toList(),
+        ),
+        const SizedBox(height: 12),
+        _sectionTitle('Others'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: others.map(_pill).toList(),
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton.icon(
+          onPressed: _generateRecipe,
+          icon: const Icon(Icons.play_circle_outline),
+          label: const Text('Suggest Recipe (YouTube search)'),
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton.icon(
+          onPressed: () {
+            onUpdateAvatar(
+              weeklyHealth: weeklyHealth,
+              weeklyEnergy: weeklyEnergy,
+              weeklyStamina: weeklyStamina,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Avatar updated from weekly food data')),
+            );
+          },
+          icon: const Icon(Icons.auto_graph),
+          label: const Text('Update Avatar from Weekly Food'),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionTitle(String title) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      );
+
+  Widget _pill(String label) {
+    return Chip(
+      label: Text(label),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    );
+  }
+}
+
+//
+// -------------------- SCANNER HOME + CAPTURE BUTTON --------------------
+//
+
+class ScannerScreen extends StatelessWidget {
+  final VoidCallback onSecretTap;
+  final void Function({
+    required double healthGain,
+    required double energyGain,
+    required double staminaGain,
+  }) onMockScanResult;
+
+  const ScannerScreen({
+    super.key,
+    required this.onSecretTap,
+    required this.onMockScanResult,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'HIW Scanner',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onLongPress: onSecretTap,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Camera View / ML model output here\n'
+                      '(Capture button below)',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 80), // space for capture button
+          ],
+        ),
+        // Big capture button at bottom center
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: GestureDetector(
+              onTap: () {
+                // Later: open camera & run ML model.
+                // Now: fake a healthy scan.
+                onMockScanResult(
+                  healthGain: 5,
+                  energyGain: 4,
+                  staminaGain: 3,
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Mock scan: Healthy food detected')),
+                );
+              },
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.teal, width: 4),
+                  color: Colors.white,
+                ),
+                child: const Icon(Icons.camera_alt, size: 32),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+//
+// -------------------- HISTORY SCREEN WITH 3 PIE CHARTS --------------------
+//
+
+class HistoryScreen extends StatelessWidget {
+  final double weeklyHealthy;
+  final double weeklyJunk;
+  final double monthlyHealthy;
+  final double monthlyJunk;
+  final double proteinPercent;
+  final double carbPercent;
+  final double caloriesPercent;
+
+  const HistoryScreen({
+    super.key,
+    required this.weeklyHealthy,
+    required this.weeklyJunk,
+    required this.monthlyHealthy,
+    required this.monthlyJunk,
+    required this.proteinPercent,
+    required this.carbPercent,
+    required this.caloriesPercent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text(
+          'HIW History & Stats',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        _pieCard(
+          context,
+          title: 'Weekly: Healthy vs Junk',
+          sections: [
+            PieChartSectionData(
+              value: weeklyHealthy,
+              title: 'Healthy\n${weeklyHealthy.toStringAsFixed(0)}%',
+            ),
+            PieChartSectionData(
+              value: weeklyJunk,
+              title: 'Junk\n${weeklyJunk.toStringAsFixed(0)}%',
+            ),
+          ],
+        ),
+        _pieCard(
+          context,
+          title: 'Monthly: Healthy vs Junk',
+          sections: [
+            PieChartSectionData(
+              value: monthlyHealthy,
+              title: 'Healthy\n${monthlyHealthy.toStringAsFixed(0)}%',
+            ),
+            PieChartSectionData(
+              value: monthlyJunk,
+              title: 'Junk\n${monthlyJunk.toStringAsFixed(0)}%',
+            ),
+          ],
+        ),
+        _pieCard(
+          context,
+          title: 'Approx Nutrition Split (Weekly)',
+          sections: [
+            PieChartSectionData(
+              value: proteinPercent,
+              title: 'Protein\n${proteinPercent.toStringAsFixed(0)}%',
+            ),
+            PieChartSectionData(
+              value: carbPercent,
+              title: 'Carbs\n${carbPercent.toStringAsFixed(0)}%',
+            ),
+            PieChartSectionData(
+              value: caloriesPercent,
+              title: 'Calories\n${caloriesPercent.toStringAsFixed(0)}%',
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Below this you can show list of all scans.\n'
+          'Later: link to local DB or API.',
+        ),
+      ],
+    );
+  }
+
+  Widget _pieCard(
+    BuildContext context, {
+    required String title,
+    required List<PieChartSectionData> sections,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(title,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 180,
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 30,
+                  sections: sections,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+//
+// -------------------- AVATAR SCREEN (STATS + 3D PLACEHOLDER AREA) --------------------
+//
+
+class AvatarScreen extends StatelessWidget {
+  final double healthPercent;
+  final double energyPercent;
+  final double staminaPercent;
+
+  const AvatarScreen({
+    super.key,
+    required this.healthPercent,
+    required this.energyPercent,
+    required this.staminaPercent,
+  });
+
+  AvatarStage _avatarStage(double percent) {
+    if (percent >= 80) return AvatarStage.veryHealthy;
+    if (percent >= 60) return AvatarStage.healthy;
+    if (percent >= 40) return AvatarStage.normal;
+    return AvatarStage.unhealthy;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = _avatarStage(healthPercent);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('HIW Avatar'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            },
+          )
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Center(
+            child: Stack(
+              children: [
+                // Placeholder "3D" container – later we embed actual GLB viewer here
+                Container(
+                  width: 180,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: _gradientForStage(stage),
+                    border: Border.all(
+                      color: Colors.teal.shade700,
+                      width: 2,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      '3D Avatar\n(placeholder)\n\nLater: GLB model\nrotating here.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: FloatingActionButton.small(
+                    heroTag: 'game_button',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MiniGameScreen(),
+                        ),
+                      );
+                    },
+                    child: const Icon(Icons.videogame_asset),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              'Health: ${healthPercent.toStringAsFixed(0)}%',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Center(
+            child: Text('Energy: ${energyPercent.toStringAsFixed(0)}%'),
+          ),
+          Center(
+            child: Text('Stamina: ${staminaPercent.toStringAsFixed(0)}%'),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: Text(
+              'Stage: ${stage.name.toUpperCase()}',
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Later we will:\n'
+            '• Replace this box with real 3D GLB avatar\n'
+            '• Animate based on health, energy, stamina\n'
+            '• Change body, skin glow, clothes, etc.',
+            textAlign: TextAlign.left,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Gradient _gradientForStage(AvatarStage stage) {
+    switch (stage) {
+      case AvatarStage.unhealthy:
+        return const LinearGradient(colors: [Colors.grey, Colors.red]);
+      case AvatarStage.normal:
+        return const LinearGradient(colors: [Colors.blueGrey, Colors.green]);
+      case AvatarStage.healthy:
+        return const LinearGradient(colors: [Colors.green, Colors.teal]);
+      case AvatarStage.veryHealthy:
+        return const LinearGradient(
+            colors: [Colors.teal, Colors.lightGreenAccent]);
+    }
+  }
+}
+
+enum AvatarStage { unhealthy, normal, healthy, veryHealthy }
+
+//
+// -------------------- SETTINGS SCREEN --------------------
+//
+
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Settings'),
+      ),
+      body: ListView(
+        children: const [
+          ListTile(
+            leading: Icon(Icons.language),
+            title: Text('Language'),
+          ),
+          ListTile(
+            leading: Icon(Icons.dark_mode),
+            title: Text('Theme'),
+          ),
+          ListTile(
+            leading: Icon(Icons.info_outline),
+            title: Text('App & Model Info'),
+          ),
+          ListTile(
+            leading: Icon(Icons.logout),
+            title: Text('Logout'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+//
+// -------------------- MINI GAME PLACEHOLDER --------------------
+//
+
+class MiniGameScreen extends StatelessWidget {
+  const MiniGameScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mini Game'),
+      ),
+      body: const Center(
+        child: Text(
+          'Your garden / food mini game will appear here.\n'
+          'Cooldown and growth logic added later.',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
+//
+// -------------------- DEV CONSOLE --------------------
+//
+
+class ConsoleMenuScreen extends StatefulWidget {
+  const ConsoleMenuScreen({super.key});
+
+  @override
+  State<ConsoleMenuScreen> createState() => _ConsoleMenuScreenState();
+}
+
+class _ConsoleMenuScreenState extends State<ConsoleMenuScreen> {
+  final TextEditingController _controller = TextEditingController();
+  final List<String> _logs = [];
+
+  void _runCommand(String cmd) {
+    setState(() {
+      _logs.add('> $cmd');
+
+      if (cmd == '/plant_grow') {
+        _logs.add('🌱 Plant grew by +10%.');
+      } else if (cmd == '/chaos_mode_on') {
+        _logs.add('⚠ Chaos Mode enabled. HIW is now in Chaos Mode.');
+      } else if (cmd == '/roast_me') {
+        _logs.add('🔥 You really running dev console on a Saturday night, huh?');
+      } else if (cmd == '/self_destruct') {
+        _logs.add('💣 App will totally not self-destruct. Chill.');
+      } else {
+        _logs.add(
+            'Unknown command. Available: /plant_grow, /chaos_mode_on, /roast_me, /self_destruct');
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Developer Console'),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(8),
+              itemCount: _logs.length,
+              itemBuilder: (context, index) {
+                return Text(_logs[index]);
+              },
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                      hintText: 'Type a dev command...',
+                    ),
+                    onSubmitted: (value) {
+                      if (value.trim().isNotEmpty) {
+                        _runCommand(value.trim());
+                        _controller.clear();
+                      }
+                    },
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.play_arrow),
+                  onPressed: () {
+                    final cmd = _controller.text.trim();
+                    if (cmd.isNotEmpty) {
+                      _runCommand(cmd);
+                      _controller.clear();
+                    }
+                  },
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+}
