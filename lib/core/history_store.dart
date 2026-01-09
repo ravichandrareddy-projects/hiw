@@ -1,3 +1,5 @@
+import 'package:hive/hive.dart';
+import '../hive/history_hive_model.dart';
 import 'food_item.dart';
 
 class HistoryEntry {
@@ -10,31 +12,52 @@ class HistoryStore {
   factory HistoryStore() => _instance;
   HistoryStore._internal();
 
-  final List<HistoryEntry> _entries = [];
+  final Box<HistoryHive> _box = Hive.box<HistoryHive>('historyBox');
 
+  // -------------------------
+  // ADD ENTRY (PERMANENT)
+  // -------------------------
   void addFood(FoodItem food) {
-    _entries.add(HistoryEntry(food));
+    final hiveItem = HistoryHive(
+      foodName: food.name,
+      mealTypeIndex: food.mealType.index,
+      calories: food.calories,
+      time: food.time,
+    );
+    _box.add(hiveItem);
   }
 
-  List<HistoryEntry> get allEntries => List.unmodifiable(_entries);
-
-  /// 🔹 Get entries for a specific week (calendar-based)
-  List<HistoryEntry> getWeek(DateTime date) {
-    final startOfWeek =
-        date.subtract(Duration(days: date.weekday - 1));
-    final endOfWeek = startOfWeek.add(const Duration(days: 6));
-
-    return _entries.where((e) {
-      return e.food.time.isAfter(startOfWeek.subtract(const Duration(seconds: 1))) &&
-             e.food.time.isBefore(endOfWeek.add(const Duration(days: 1)));
+  // -------------------------
+  // ALL HISTORY
+  // -------------------------
+  List<HistoryEntry> get allEntries {
+    return _box.values.map((h) {
+      return HistoryEntry(
+        FoodItem(
+          name: h.foodName,
+          mealType: MealType.values[h.mealTypeIndex],
+          calories: h.calories,
+          protein: 0,
+          carbs: 0,
+          fats: 0,
+          time: h.time,
+        ),
+      );
     }).toList();
   }
 
-  /// 🔹 Get entries for a month
-  List<HistoryEntry> getMonth(int year, int month) {
-    return _entries.where((e) {
-      return e.food.time.year == year &&
-             e.food.time.month == month;
-    }).toList();
+  // -------------------------
+  // WEEK FILTER
+  // -------------------------
+  List<HistoryEntry> getWeek(DateTime now) {
+    final start =
+        DateTime(now.year, now.month, now.day - (now.weekday - 1));
+    final end = start.add(const Duration(days: 7));
+
+    return allEntries
+        .where((e) =>
+            e.food.time.isAfter(start) &&
+            e.food.time.isBefore(end))
+        .toList();
   }
 }

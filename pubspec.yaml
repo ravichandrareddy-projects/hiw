@@ -22,12 +22,12 @@ dependencies:
   camera: ^0.10.5+5
   image: ^4.1.3
 
+  # 🌐 NETWORK (ML API)
+  http: ^1.2.0
+
   # 🧠 LOCAL STORAGE (HIVE)
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-
-  # (ML LATER – API based)
-  # tflite_flutter
 
 dev_dependencies:
   flutter_test:
@@ -44,4 +44,3 @@ flutter:
 
   assets:
     - assets/christmas/
-    - assets/ml/labels.txt

@@ -1,17 +1,15 @@
+//lib/screens/scanner_screen.dart
+import 'dart:convert';
 import 'dart:io';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-
-// 🧠 CORE LOGIC
-import '../core/food_item.dart';
-import '../core/nutrition_store.dart';
-import '../core/history_store.dart';
-import '../core/health_engine.dart';
+import 'package:http/http.dart' as http;
 
 class ScannerScreen extends StatefulWidget {
   final void Function({
     required ImageProvider image,
-    required int calories,
+    required String label,
     required double healthyScore,
   }) onFoodAnalyzed;
 
@@ -24,7 +22,14 @@ class ScannerScreen extends StatefulWidget {
 class _ScannerScreenState extends State<ScannerScreen> {
   CameraController? _controller;
   bool _ready = false;
+  bool _loading = false;
   XFile? _image;
+
+  /// 🔥 Hugging Face API
+/// 🔥 Hugging Face API (UPDATED SPACE)
+static const String apiUrl =
+    'https://valtoy-hiw-food-api.hf.space/predict';
+
 
   @override
   void initState() {
@@ -55,55 +60,71 @@ class _ScannerScreenState extends State<ScannerScreen> {
     setState(() => _image = img);
   }
 
-  void _analyzeAndSend() {
-    // -----------------------------
-    // 🧠 CREATE FOOD ITEM (DEMO)
-    // -----------------------------
-    final food = FoodItem(
-      name: "Dosa", // later from ML
-      mealType: MealType.breakfast, // later dynamic
-      calories: 320,
-      protein: 12,
-      carbs: 45,
-      fats: 10,
-    );
+  /// -----------------------------
+  /// 🧠 SEND IMAGE TO ML API
+  /// -----------------------------
+  Future<void> _analyzeAndSend() async {
+    if (_image == null) return;
 
-    // -----------------------------
-    // 🧠 PUSH INTO CORE STORES
-    // -----------------------------
-    NutritionStore().addFood(food);
-    HistoryStore().addFood(food);
-    HealthEngine().applyFood(food);
+    setState(() => _loading = true);
 
-    // -----------------------------
-    // 🔁 EXISTING FLOW (UNCHANGED)
-    // -----------------------------
-    widget.onFoodAnalyzed(
-      image: FileImage(File(_image!.path)),
-      calories: food.calories,
-      healthyScore: 0.25,
-    );
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(apiUrl),
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Food analyzed')),
-    );
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'image',
+          _image!.path,
+        ),
+      );
 
-    setState(() => _image = null);
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      final data = jsonDecode(body);
+
+      final label = data['label'] as String;
+      final confidence = (data['confidence'] as num).toDouble();
+
+      /// 🔁 SEND ONLY DATA TO FOOD SCREEN
+      widget.onFoodAnalyzed(
+        image: FileImage(File(_image!.path)),
+        label: label,
+        healthyScore: confidence,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Detected: $label')),
+      );
+
+      setState(() {
+        _image = null;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to analyze image')),
+      );
+    } finally {
+      setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body:
-          _ready ? _cameraBody() : const Center(child: CircularProgressIndicator()),
+      body: _ready
+          ? _cameraBody()
+          : const Center(child: CircularProgressIndicator()),
     );
   }
 
   Widget _cameraBody() {
     return Stack(
       children: [
-        /// 🔥 FULL SCREEN CAMERA (NO LEFT SHIFT)
+        /// CAMERA / PREVIEW
         if (_image == null)
           SizedBox.expand(
             child: FittedBox(
@@ -148,6 +169,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
           ),
         ),
 
+        /// LOADING
+        if (_loading)
+          const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          ),
+
         /// BOTTOM BUTTON
         Positioned(
           bottom: 40,
@@ -155,7 +182,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
           right: 0,
           child: Center(
             child: GestureDetector(
-              onTap: _image == null ? _capture : _analyzeAndSend,
+              onTap: _loading
+                  ? null
+                  : _image == null
+                      ? _capture
+                      : _analyzeAndSend,
               child: Container(
                 width: 80,
                 height: 80,

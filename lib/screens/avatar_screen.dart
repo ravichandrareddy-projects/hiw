@@ -1,11 +1,12 @@
+//lib/screens/avatar_screen.dart
 import 'package:flutter/material.dart';
 
 enum AvatarStage { unhealthy, normal, healthy, veryHealthy }
 
 class AvatarScreen extends StatelessWidget {
-  final double healthPercent;
-  final double energyPercent;
-  final double staminaPercent;
+  final double healthPercent;        // weekly finalized
+  final double energyPercent;        // weekly finalized
+  final double staminaPercent;       // 🆕 daily preview stamina
 
   const AvatarScreen({
     super.key,
@@ -20,9 +21,6 @@ class AvatarScreen extends StatelessWidget {
     if (p >= 40) return AvatarStage.normal;
     return AvatarStage.unhealthy;
   }
-
-  bool get _isSaturday =>
-      DateTime.now().weekday == DateTime.saturday;
 
   @override
   Widget build(BuildContext context) {
@@ -50,69 +48,84 @@ class AvatarScreen extends StatelessWidget {
               child: Text(
                 '3D Avatar\nplaceholder',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
               ),
             ),
           ),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
         // -------------------------
         // STATS
         // -------------------------
-        _statRow('Health', healthPercent),
-        _statRow('Energy', energyPercent),
-        _statRow('Stamina', staminaPercent),
+        _statRow('Health (weekly)', healthPercent),
+        _statRow('Energy (weekly)', energyPercent),
+        _statRow('Stamina (today)', staminaPercent), // 🆕
 
         const SizedBox(height: 12),
 
         Center(
           child: Text(
             'Stage: ${stage.name.toUpperCase()}',
-            style: const TextStyle(fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
           ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 28),
 
         // -------------------------
-        // 🎮 GAME BUTTON (SATURDAY ONLY)
+        // 🎮 GAME ACCESS (TESTER MODE)
         // -------------------------
-        if (_isSaturday)
-          Center(
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.sports_esports),
-              label: const Text('Enter Gaming World'),
-              style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                backgroundColor: Colors.tealAccent,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+        Center(
+          child: Column(
+            children: [
+              ElevatedButton.icon(
+                icon: const Icon(Icons.sports_esports),
+                label: const Text('Enter Gaming World'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
+                  backgroundColor: Colors.tealAccent,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const GamingWorldScreen(),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 10),
+
+              // 🔒 OFFICIAL RULE NOTE
+              const Text(
+                'ℹ️ Official game unlock: Every Saturday at 4:00 PM\n'
+                '(Tester access currently enabled)',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
                 ),
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const GamingWorldScreen(),
-                  ),
-                );
-              },
-            ),
-          )
-        else
-          Center(
-            child: Text(
-              '🎮 Gaming World unlocks on Saturday',
-              style: TextStyle(
-                color: Colors.white70,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
+            ],
           ),
+        ),
       ],
     );
   }
@@ -146,10 +159,17 @@ class AvatarScreen extends StatelessWidget {
   // -------------------------
   Widget _statRow(String label, double value) {
     return Padding(
+
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          SizedBox(width: 80, child: Text(label)),
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(999),
@@ -157,8 +177,9 @@ class AvatarScreen extends StatelessWidget {
                 value: (value / 100).clamp(0, 1),
                 minHeight: 10,
                 backgroundColor: Colors.white12,
-                valueColor:
-                    const AlwaysStoppedAnimation(Colors.tealAccent),
+                valueColor: const AlwaysStoppedAnimation(
+                  Colors.tealAccent,
+                ),
               ),
             ),
           ),
@@ -182,7 +203,9 @@ class GamingWorldScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Gaming World')),
       body: const Center(
         child: Text(
-          '🎮 Gaming World\n(Coming Soon)',
+          '🎮 Gaming World\n\n'
+          'CURRENTLY UNDER CONSTRUCTION\n'
+          'Coming Soon 🚀',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 18),
         ),

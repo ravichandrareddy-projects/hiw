@@ -5,25 +5,21 @@ part 'history_hive_model.g.dart';
 @HiveType(typeId: 1)
 class HistoryHive extends HiveObject {
   @HiveField(0)
-  String date;
+  String foodName;
 
   @HiveField(1)
-  int calories;
+  int mealTypeIndex; // MealType.index
 
   @HiveField(2)
-  double protein;
+  int calories;
 
   @HiveField(3)
-  double carbs;
-
-  @HiveField(4)
-  double fats;
+  DateTime time;
 
   HistoryHive({
-    required this.date,
+    required this.foodName,
+    required this.mealTypeIndex,
     required this.calories,
-    required this.protein,
-    required this.carbs,
-    required this.fats,
+    required this.time,
   });
 }

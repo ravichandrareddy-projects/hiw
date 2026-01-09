@@ -17,30 +17,33 @@ class FoodHiveAdapter extends TypeAdapter<FoodHive> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return FoodHive(
-      meal: fields[0] as String,
-      calories: fields[1] as int,
-      protein: fields[2] as double,
-      carbs: fields[3] as double,
-      fats: fields[4] as double,
-      time: fields[5] as DateTime,
+      name: fields[0] as String,
+      mealTypeIndex: fields[1] as int,
+      calories: fields[2] as int,
+      protein: fields[3] as double,
+      carbs: fields[4] as double,
+      fats: fields[5] as double,
+      time: fields[6] as DateTime,
     );
   }
 
   @override
   void write(BinaryWriter writer, FoodHive obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(7)
       ..writeByte(0)
-      ..write(obj.meal)
+      ..write(obj.name)
       ..writeByte(1)
-      ..write(obj.calories)
+      ..write(obj.mealTypeIndex)
       ..writeByte(2)
-      ..write(obj.protein)
+      ..write(obj.calories)
       ..writeByte(3)
-      ..write(obj.carbs)
+      ..write(obj.protein)
       ..writeByte(4)
-      ..write(obj.fats)
+      ..write(obj.carbs)
       ..writeByte(5)
+      ..write(obj.fats)
+      ..writeByte(6)
       ..write(obj.time);
   }
 

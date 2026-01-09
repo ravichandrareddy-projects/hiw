@@ -21,6 +21,9 @@ import 'events/christmas/christmas_config.dart';
 // hive
 import 'hive/hive_init.dart';
 
+// avatar hive + store
+import 'avatar/avatar_store.dart';
+
 /// ✅ ONLY ONE MAIN
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,48 +56,88 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 1;
 
   // -------------------------
-  // AVATAR STATE
+  // AVATAR STORE (SINGLE SOURCE)
   // -------------------------
-  double avatarHealth = 72;
-  double avatarEnergy = 65;
-  double avatarStamina = 58;
+  final AvatarStore _avatarStore = AvatarStore();
+
+  double avatarHealth = 0;
+  double avatarEnergy = 0;
+  double avatarStamina = 0; // 🔥 DAILY stamina preview
 
   // -------------------------
   // FOOD SCAN STATE
   // -------------------------
   ImageProvider? scannedFoodImage;
-  int scannedCalories = 0;
+  String? detectedFoodLabel;
   double scannedHealthyScore = 0;
 
+  // -------------------------
+  // INIT
+  // -------------------------
+  @override
+  void initState() {
+    super.initState();
+    _initAvatar();
+  }
+
+  Future<void> _initAvatar() async {
+    await _avatarStore.init();
+
+    final avatar = _avatarStore.avatar;
+
+setState(() {
+  avatarHealth = avatar.health;
+  avatarEnergy = avatar.energy;
+  avatarStamina = _avatarStore.dailyStaminaPreview; // ✅ LIVE WATER
+});
+
+  }
+
+  // -------------------------
+  // CALLED FROM SCANNER
+  // -------------------------
   void _onFoodAnalyzed({
     required ImageProvider image,
-    required int calories,
+    required String label,
     required double healthyScore,
   }) {
     setState(() {
       scannedFoodImage = image;
-      scannedCalories = calories;
+      detectedFoodLabel = label;
       scannedHealthyScore = healthyScore;
-      _currentIndex = 1;
+      _currentIndex = 1; // jump to Food tab
     });
   }
 
+  // -------------------------
+  // CALLED FROM FOOD SCREEN
+  // -------------------------
+  // FOOD → HEALTH + ENERGY ONLY
   void _updateAvatarFromFood({
-    required double health,
-    required double energy,
-    required double stamina,
+    required int dailyRaw,
   }) {
+    _avatarStore.addDailyRaw(
+      healthRaw: dailyRaw,
+      energyRaw: dailyRaw,
+      staminaRaw: 0, // ❌ stamina NOT from food
+    );
+
+    final avatar = _avatarStore.avatar;
+
     setState(() {
-      avatarHealth = health;
-      avatarEnergy = energy;
-      avatarStamina = stamina;
+      avatarHealth = avatar.health;
+      avatarEnergy = avatar.energy;
+      avatarStamina = _avatarStore.dailyStaminaPreview;
 
       scannedFoodImage = null;
-      scannedCalories = 0;
+      detectedFoodLabel = null;
       scannedHealthyScore = 0;
     });
   }
 
+  // -------------------------
+  // UI WRAPPER
+  // -------------------------
   Widget _wrapWithEvent(Widget page) {
     return ChristmasConfig.enabled
         ? ChristmasBackground(child: page)
@@ -105,18 +148,25 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final pages = <Widget>[
       const ChatbotScreen(),
+
+      /// 🍽 FOOD
       FoodScreen(
         onUpdateAvatar: _updateAvatarFromFood,
         scannedImage: scannedFoodImage,
-        scannedCalories: scannedCalories,
+        detectedLabel: detectedFoodLabel,
         healthyScore: scannedHealthyScore,
       ),
+
+      /// 📸 SCANNER
       ScannerScreen(onFoodAnalyzed: _onFoodAnalyzed),
+
       const HistoryScreen(),
+
+      /// 🧍 AVATAR
       AvatarScreen(
         healthPercent: avatarHealth,
         energyPercent: avatarEnergy,
-        staminaPercent: avatarStamina,
+        staminaPercent: avatarStamina, // ✅ DAILY stamina
       ),
     ];
 
@@ -125,7 +175,6 @@ class _MainShellState extends State<MainShell> {
 
       body: Stack(
         children: [
-          // 🔥 PAGE CONTENT
           _wrapWithEvent(
             Padding(
               padding: const EdgeInsets.only(top: 72),
@@ -133,7 +182,7 @@ class _MainShellState extends State<MainShell> {
             ),
           ),
 
-          // 🧊 HIW GLASS HEADER (SAFE & CORRECT)
+          // 🧊 HEADER
           SafeArea(
             child: Align(
               alignment: Alignment.topCenter,
@@ -142,8 +191,8 @@ class _MainShellState extends State<MainShell> {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 10),
                     decoration: BoxDecoration(

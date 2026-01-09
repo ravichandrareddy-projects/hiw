@@ -1,7 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-
-// 🧠 CORE LOGIC
 import '../core/history_store.dart';
 import '../core/food_item.dart';
 
@@ -11,102 +9,110 @@ class WeeklyHistoryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final entries = HistoryStore().getWeek(now);
 
-    // Group by date (yyyy-mm-dd)
+    // 🔹 Monday → Sunday
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 6));
+
+    final entries = HistoryStore().allEntries.where((e) {
+      final t = e.food.time;
+      return !t.isBefore(_dayStart(weekStart)) &&
+          !t.isAfter(_dayEnd(weekEnd));
+    }).toList();
+
     final Map<String, List<FoodItem>> byDay = {};
     for (final e in entries) {
-      final food = e.food;
-      final key =
-          "${food.time.year}-${food.time.month}-${food.time.day}";
-      byDay.putIfAbsent(key, () => []).add(food);
+      final f = e.food;
+      final key = "${f.time.year}-${f.time.month}-${f.time.day}";
+      byDay.putIfAbsent(key, () => []).add(f);
     }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(title: const Text("Weekly History")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
-        child: _glassWeek(byDay),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _weekHeader(weekStart, weekEnd),
+          const SizedBox(height: 12),
+          ...byDay.entries.map((e) {
+            final parts = e.key.split("-");
+            final date = DateTime(
+              int.parse(parts[0]),
+              int.parse(parts[1]),
+              int.parse(parts[2]),
+            );
+            return _dayTile(date, e.value);
+          }).toList(),
+        ],
       ),
     );
   }
 
-  // -------------------------
-  // WEEK CONTAINER
-  // -------------------------
-  Widget _glassWeek(Map<String, List<FoodItem>> byDay) {
-    return _glassContainer(
-      ExpansionTile(
-        title: Text(_weekLabel()),
-        children: byDay.entries.map((entry) {
-          final date = DateTime.parse(entry.key);
-          return _day(date, entry.value);
-        }).toList(),
+  // ---------------- UI ----------------
+
+  Widget _weekHeader(DateTime start, DateTime end) {
+    return _glass(
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          "Week: ${_fmt(start)} → ${_fmt(end)}",
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
       ),
     );
   }
 
-  // -------------------------
-  // DAY TILE
-  // -------------------------
-  Widget _day(DateTime date, List<FoodItem> foods) {
-    final dayName =
-        ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][date.weekday - 1];
-    final dateLabel = "${date.day}-${date.month}-${date.year}";
-
-    return _glassContainer(
+  Widget _dayTile(DateTime date, List<FoodItem> foods) {
+    return _glass(
       ExpansionTile(
-        title: Text("$dayName | $dateLabel"),
+        title: Text(
+          "${date.day}-${date.month}-${date.year}",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         children: foods.map((f) {
           return ListTile(
-            title: Text("${_mealLabel(f.mealType)}: ${f.name}"),
-            subtitle: Text(
-              "${f.calories} kcal | ${_timeLabel(f.time)}",
-              style: const TextStyle(fontSize: 12),
-            ),
+            title: Text("${_meal(f.mealType)} • ${f.name}"),
+            subtitle: Text("${f.calories} kcal • ${_time(f.time)}"),
           );
         }).toList(),
       ),
     );
   }
 
-  // -------------------------
-  // HELPERS
-  // -------------------------
-  String _weekLabel() {
-    final now = DateTime.now();
-    final start =
-        now.subtract(Duration(days: now.weekday - 1));
-    final end = start.add(const Duration(days: 6));
-    return "Week ${start.day}-${start.month} → ${end.day}-${end.month}";
-  }
+  // ---------------- helpers ----------------
 
-  String _mealLabel(MealType t) {
+  DateTime _dayStart(DateTime d) =>
+      DateTime(d.year, d.month, d.day);
+
+  DateTime _dayEnd(DateTime d) =>
+      DateTime(d.year, d.month, d.day, 23, 59, 59);
+
+  String _fmt(DateTime d) =>
+      "${d.day}/${d.month}/${d.year}";
+
+  String _meal(MealType t) {
     switch (t) {
       case MealType.breakfast:
-        return "BF";
+        return "Breakfast";
       case MealType.lunch:
-        return "LU";
+        return "Lunch";
       case MealType.snack:
-        return "SN";
+        return "Snack";
       case MealType.dinner:
-        return "DIN";
+        return "Dinner";
       case MealType.lateNight:
-        return "LN";
+        return "Late Night";
     }
   }
 
-  String _timeLabel(DateTime t) {
-    final h = t.hour.toString().padLeft(2, '0');
-    final m = t.minute.toString().padLeft(2, '0');
-    return "$h:$m";
-  }
+  String _time(DateTime t) =>
+      "${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}";
 
-  // -------------------------
-  // GLASS CONTAINER
-  // -------------------------
-  Widget _glassContainer(Widget child) {
+  Widget _glass(Widget child) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: ClipRRect(

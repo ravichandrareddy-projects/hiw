@@ -16,12 +16,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _index = 2; // HIW default (camera/scanner)
+  int _index = 2; // default HIW screen
 
   final List<Widget> _screens = const [
     ChatbotScreen(),
     FoodScreen(),
-    ScannerScreen(), // HIW main
+    ScannerScreen(),
     HistoryScreen(),
     AvatarScreen(),
   ];
@@ -30,7 +30,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: _screens[_index],
+
+      // 🔥 THIS IS THE FIX
+      body: IndexedStack(
+        index: _index,
+        children: _screens,
+      ),
+
       bottomNavigationBar: BottomNav(
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),

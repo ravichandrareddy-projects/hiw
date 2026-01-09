@@ -1,7 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-
-// 🧠 CORE
 import '../core/history_store.dart';
 import '../core/food_item.dart';
 
@@ -10,38 +8,46 @@ class MonthlyHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entries = HistoryStore().allEntries;
+    final now = DateTime.now();
 
-    // monthKey -> foods
-    final Map<String, List<FoodItem>> monthMap = {};
+    // 🔹 current week start (Monday)
+    final currentWeekStart =
+        now.subtract(Duration(days: now.weekday - 1));
 
-    for (final e in entries) {
+    final completedEntries = HistoryStore().allEntries.where((e) {
+      return e.food.time.isBefore(currentWeekStart);
+    }).toList();
+
+    final Map<String, List<FoodItem>> byMonth = {};
+    for (final e in completedEntries) {
       final f = e.food;
       final key = "${f.time.year}-${f.time.month}";
-      monthMap.putIfAbsent(key, () => []).add(f);
+      byMonth.putIfAbsent(key, () => []).add(f);
     }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(title: const Text("Monthly Report")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
-        child: Column(
-          children: monthMap.entries.map((e) {
-            return _monthTile(e.key, e.value);
-          }).toList(),
-        ),
-      ),
+      appBar: AppBar(title: const Text("Monthly History")),
+      body: byMonth.isEmpty
+          ? const Center(
+              child: Text(
+                "No completed weeks yet",
+                style: TextStyle(color: Colors.white70),
+              ),
+            )
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: byMonth.entries.map((e) {
+                return _monthTile(e.key, e.value);
+              }).toList(),
+            ),
     );
   }
 
   Widget _monthTile(String key, List<FoodItem> foods) {
     final parts = key.split("-");
-    final year = parts[0];
     final month = int.parse(parts[1]);
-
-    final totalProtein =
-        foods.fold<double>(0, (s, f) => s + f.protein);
+    final year = parts[0];
 
     final totalCalories =
         foods.fold<int>(0, (s, f) => s + f.calories);
@@ -49,54 +55,23 @@ class MonthlyHistoryScreen extends StatelessWidget {
     return _glass(
       ExpansionTile(
         title: Text("${_monthName(month)} $year"),
-        subtitle: Text(
-          "Protein: ${totalProtein.toStringAsFixed(1)} g | "
-          "Calories: $totalCalories kcal",
-          style: const TextStyle(fontSize: 12),
-        ),
+        subtitle: Text("Calories: $totalCalories kcal"),
         children: foods.map((f) {
           return ListTile(
-            title: Text("${_meal(f.mealType)}: ${f.name}"),
-            subtitle:
-                Text("${f.calories} kcal • ${f.protein}g protein"),
+            title: Text("${f.name} (${_meal(f.mealType)})"),
+            subtitle: Text("${f.calories} kcal"),
           );
         }).toList(),
       ),
     );
   }
 
-  String _monthName(int m) {
-    const names = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December"
-    ];
-    return names[m - 1];
-  }
+  String _monthName(int m) => const [
+        "Jan","Feb","Mar","Apr","May","Jun",
+        "Jul","Aug","Sep","Oct","Nov","Dec"
+      ][m - 1];
 
-  String _meal(MealType t) {
-    switch (t) {
-      case MealType.breakfast:
-        return "BF";
-      case MealType.lunch:
-        return "LU";
-      case MealType.snack:
-        return "SN";
-      case MealType.dinner:
-        return "DIN";
-      case MealType.lateNight:
-        return "LN";
-    }
-  }
+  String _meal(MealType t) => t.name.toUpperCase();
 
   Widget _glass(Widget child) {
     return Padding(
