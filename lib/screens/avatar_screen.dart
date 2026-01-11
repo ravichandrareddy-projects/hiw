@@ -62,9 +62,9 @@ class AvatarScreen extends StatelessWidget {
         // -------------------------
         // STATS
         // -------------------------
-        _statRow('Health (weekly)', healthPercent),
-        _statRow('Energy (weekly)', energyPercent),
-        _statRow('Stamina (today)', staminaPercent), // 🆕
+        _statRow('Health ', healthPercent),
+        _statRow('Energy ', energyPercent),
+        _statRow('Stamina ', staminaPercent), // 🆕
 
         const SizedBox(height: 12),
 
@@ -205,7 +205,7 @@ class GamingWorldScreen extends StatelessWidget {
         child: Text(
           '🎮 Gaming World\n\n'
           'CURRENTLY UNDER CONSTRUCTION\n'
-          'Coming Soon 🚀',
+          'Coming Soon 🚀\nSTAY TUNED!!! ',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 18),
         ),

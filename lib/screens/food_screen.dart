@@ -85,10 +85,8 @@ class _FoodScreenState extends State<FoodScreen> {
   void initState() {
     super.initState();
 
-    // ✅ SAFE INIT — NO DOUBLE OPEN
     Future.microtask(() async {
       await _waterStore.init();
-
       await _avatarStore.init();
     });
 
@@ -193,168 +191,93 @@ class _FoodScreenState extends State<FoodScreen> {
   }
 
   // =============================
-  // SECTIONS
+  // NUTRITION CARD (FIXED PTA)
   // =============================
-  Widget _header() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GlassCard(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: Text(dateText,
-                    style: const TextStyle(color: Colors.white70)),
-              ),
-              GlassCard(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-                child: const Text(
-                  'HIW',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2),
-                ),
-              ),
-              GlassCard(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                child: Text(timeText,
-                    style: const TextStyle(color: Colors.white70)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text('${_greeting()}, Valtooy 👋',
-              style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white)),
-          const SizedBox(height: 6),
-          const Text('Here’s your nutrition summary for today',
-              style: TextStyle(color: Colors.white70)),
-        ],
-      );
+ Widget _nutritionCard() {
+  final totals = _totalsForSelectedMeal();
 
-  Widget _foodImage() => GlassCard(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Image(
-            image: scannedFoodImage!,
-            height: 160,
-            width: double.infinity,
-            fit: BoxFit.cover,
+  return ChristmasGlassCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${meals[selectedMeal]} Nutrition',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
           ),
         ),
-      );
+        const SizedBox(height: 12),
 
-  Widget _addonsEntry() => GlassCard(
-        child: ListTile(
-          leading: const Icon(Icons.restaurant, color: Colors.white),
-          title: Text(
-            'Customize ${detectedFoodLabel!.toUpperCase()}',
-            style: const TextStyle(color: Colors.white),
-          ),
-          trailing: const Icon(Icons.arrow_forward_ios,
-              size: 16, color: Colors.white70),
-          onTap: () async {
-            final result = await Navigator.push<Map<String, dynamic>>(
-              context,
-              MaterialPageRoute(
-                builder: (_) => GenericAddonsScreen(
-                  foodLabel: detectedFoodLabel!,
-                  addons: foodAddons[detectedFoodLabel!]!,
-                ),
-              ),
-            );
-
-            if (result != null) {
-              final food = calculateFoodFromAddons(
-                foodLabel: detectedFoodLabel!,
-                addons: result,
-                mealType: MealType.values[selectedMeal],
-              );
-
-              _nutritionStore.addFood(food);
-              _healthEngine.applyFood(food);
-              HistoryStore().addFood(food);
-
-              setState(() {
-                confirmedFood = food;
-                scannedFoodImage = null;
-                detectedFoodLabel = null;
-                _scanApplied = false;
-              });
-            }
-          },
+        Row(
+          children: [
+            _pill('Calories', '${totals.calories} kcal'),
+            const SizedBox(width: 8),
+            _pill('Protein', '${totals.protein.toStringAsFixed(1)} g'),
+          ],
         ),
-      );
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _pill('Carbs', '${totals.carbs.toStringAsFixed(1)} g'),
+            const SizedBox(width: 8),
+            _pill('Fats', '${totals.fats.toStringAsFixed(1)} g'),
+          ],
+        ),
 
-  Widget _nutritionCard() {
-    final totals = _totalsForSelectedMeal();
-
-    return ChristmasGlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('${meals[selectedMeal]} Nutrition',
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              _pill('Calories', '${totals.calories} kcal'),
-              const SizedBox(width: 8),
-              _pill('Protein', '${totals.protein.toStringAsFixed(1)} g'),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _pill('Carbs', '${totals.carbs.toStringAsFixed(1)} g'),
-              const SizedBox(width: 8),
-              _pill('Fats', '${totals.fats.toStringAsFixed(1)} g'),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerRight,
-            child: GlassButton(
-              text: 'Push To Avatar',
-              icon: Icons.arrow_upward,
-              onTap: () {
-                if (confirmedFood == null) return;
-
-                final dailyRaw = AvatarLogic.calculateDailyRaw(
-                  DailyAvatarInput(
-                    meals: [
-                      widget.healthyScore >= 0.5
-                          ? FoodQuality.healthy
-                          : FoodQuality.junk,
-                    ],
-                    calories: _nutritionStore.totalCalories,
-                    waterTicks: _waterStore.waterTicks,
-                    isSaturday:
-                        DateTime.now().weekday == DateTime.saturday,
+        const SizedBox(height: 16),
+        Align(
+          alignment: Alignment.centerRight,
+          child: GlassButton(
+            text: 'Push To Avatar',
+            icon: Icons.arrow_upward,
+            onTap: () {
+              // ✅ HARD GUARD — PTA ONLY AFTER ADDONS CONFIRM
+              if (confirmedFood == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Add food first before pushing to avatar'),
                   ),
                 );
+                return;
+              }
 
-                widget.onUpdateAvatar(dailyRaw: dailyRaw);
-              },
-            ),
+              final quality = widget.healthyScore >= 0.5
+                  ? FoodQuality.healthy
+                  : FoodQuality.junk;
+
+              final result = AvatarLogic.calculateHealthEnergy(
+                mealQuality: quality,
+                totalDailyCalories: _nutritionStore.totalCalories,
+                weeklyJunkCount: _avatarStore.weeklyJunkCount,
+              );
+
+              _avatarStore.applyHealthEnergy(
+                healthDelta: result.healthDelta,
+                energyDelta: result.energyDelta,
+                junkConsumed: result.junkConsumed,
+              );
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Avatar updated'),
+                ),
+              );
+
+              // 🔐 LOCK PTA UNTIL NEXT FOOD
+              setState(() {
+                confirmedFood = null;
+              });
+            },
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   // =============================
-  // 💧 WATER (ONLY STAMINA SOURCE)
+  // 💧 WATER (UNCHANGED)
   // =============================
   Widget _waterCard() => GlassCard(
         child: Row(
@@ -400,13 +323,131 @@ class _FoodScreenState extends State<FoodScreen> {
         ),
       );
 
+  // =============================
+  // REMAINING UI (UNCHANGED)
+  // =============================
+ Widget _header() => Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // 📅 DATE (LEFT)
+        GlassCard(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(
+            dateText,
+            style: const TextStyle(color: Colors.white70),
+          ),
+        ),
+
+        // 🏷️ HIW (CENTER)
+        GlassCard(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+          child: const Text(
+            'HIW',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+          ),
+        ),
+
+        // ⏱️ TIME WITH SECONDS (RIGHT)
+        GlassCard(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(
+            timeText,
+            style: const TextStyle(color: Colors.white70),
+          ),
+        ),
+      ],
+    ),
+
+    const SizedBox(height: 12),
+
+    // 👋 GREETING
+    Text(
+      '${_greeting()}, Valtooy 👋',
+      style: const TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
+    ),
+
+    const SizedBox(height: 6),
+    const Text(
+      'Here’s your nutrition summary for today',
+      style: TextStyle(color: Colors.white70),
+    ),
+  ],
+);
+
+
+  Widget _foodImage() => GlassCard(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Image(
+            image: scannedFoodImage!,
+            height: 160,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+        ),
+      );
+
+ Widget _addonsEntry() => GlassCard(
+  child: ListTile(
+    leading: const Icon(Icons.restaurant, color: Colors.white),
+    title: Text(
+      'Customize ${detectedFoodLabel!.toUpperCase()}',
+      style: const TextStyle(color: Colors.white),
+    ),
+    trailing: const Icon(
+      Icons.arrow_forward_ios,
+      size: 16,
+      color: Colors.white70,
+    ),
+    onTap: () async {
+      final result = await Navigator.push<Map<String, dynamic>>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GenericAddonsScreen(
+            foodLabel: detectedFoodLabel!,
+            addons: foodAddons[detectedFoodLabel!]!,
+          ),
+        ),
+      );
+
+      if (result != null) {
+        final food = calculateFoodFromAddons(
+          foodLabel: detectedFoodLabel!,
+          addons: result,
+          mealType: MealType.values[selectedMeal],
+        );
+
+        _nutritionStore.addFood(food);
+        _healthEngine.applyFood(food);
+        HistoryStore().addFood(food);
+
+        setState(() {
+          confirmedFood = food;
+          scannedFoodImage = null;
+          detectedFoodLabel = null;
+          _scanApplied = false;
+        });
+      }
+    },
+  ),
+);
+
+
   Widget _progressCard() => GlassCard(
         child: Text(
           '$remainingCalories kcal remaining',
-          style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
       );
 

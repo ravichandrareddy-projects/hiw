@@ -1,170 +1,153 @@
 import 'package:hive/hive.dart';
 import '../hive/avatar_hive_model.dart';
-import 'avatar_logic.dart';
 
 class AvatarStore {
-  static const String boxName = 'avatarBox';
-
-  static const String avatarKey = 'avatar';
-  static const String weekKey = 'weekId';
-
-  static const String rawHealthKey = 'rawHealth';
-  static const String rawEnergyKey = 'rawEnergy';
-  static const String rawStaminaKey = 'rawStamina';
-
-  // 🆕 DAILY STAMINA PREVIEW (VISIBLE TODAY)
-  static const String dailyStaminaPreviewKey = 'dailyStaminaPreview';
-  static const String dailyStaminaDateKey = 'dailyStaminaDate';
-
-  static const double maxDailyStamina = 100.0;
-  static const double waterStaminaIncrement = 5.0;
-
-  Box? _box; // 🔧 SAFE nullable box
-
   // -------------------------
-  // INIT (SAFE)
+  // SINGLETON (IMPORTANT)
   // -------------------------
-  Future<void> init() async {
-    if (_box != null) return; // ✅ prevent double init
-    _box = await Hive.openBox(boxName);
-    _ensureWeek();
-    _ensureTodayStamina();
+  static final AvatarStore _instance = AvatarStore._internal();
+  factory AvatarStore() => _instance;
 
-    if (!_box!.containsKey(avatarKey)) {
-      _box!.put(
-        avatarKey,
+  AvatarStore._internal() {
+    _avatarBox = Hive.box<AvatarHive>('avatarBox');
+    _metaBox = Hive.box('avatarMetaBox');
+
+    if (!_avatarBox.containsKey(_avatarKey)) {
+      _avatarBox.put(
+        _avatarKey,
         AvatarHive(health: 0, energy: 0, stamina: 0),
       );
     }
+
+    _ensureWeek();
+    _ensureTodayStamina();
   }
 
   // -------------------------
-  // INTERNAL SAFETY
+  // BOXES
   // -------------------------
-  bool get _ready => _box != null;
-
-  // -------------------------
-  // GETTERS
-  // -------------------------
-  AvatarHive get avatar =>
-      _ready ? _box!.get(avatarKey) : AvatarHive(health: 0, energy: 0, stamina: 0);
-
-  int get rawHealth =>
-      _ready ? _box!.get(rawHealthKey, defaultValue: 0) : 0;
-
-  int get rawEnergy =>
-      _ready ? _box!.get(rawEnergyKey, defaultValue: 0) : 0;
-
-  int get rawStamina =>
-      _ready ? _box!.get(rawStaminaKey, defaultValue: 0) : 0;
-
-  double get dailyStaminaPreview =>
-      _ready
-          ? _box!.get(dailyStaminaPreviewKey,
-              defaultValue: avatar.stamina)
-          : avatar.stamina;
+  late final Box<AvatarHive> _avatarBox;
+  late final Box _metaBox;
 
   // -------------------------
-  // FOOD → WEEKLY RAW
+  // KEYS
   // -------------------------
+  static const String _avatarKey = 'avatar';
+  static const String _weekKey = 'weekId';
+  static const String _weeklyJunkKey = 'weeklyJunkCount';
+  static const String _dailyStaminaPreviewKey = 'dailyStaminaPreview';
+  static const String _dailyStaminaDateKey = 'dailyStaminaDate';
+
+  // -------------------------
+  // LIMITS
+  // -------------------------
+  static const double maxHealth = 83.0;
+  static const double maxEnergy = 100.0;
+  static const double maxStamina = 100.0;
+  static const double waterStaminaIncrement = 5.0;
+
+  // =====================================================
+  // LEGACY METHODS (REQUIRED – DO NOT REMOVE)
+  // =====================================================
+  Future<void> init() async {
+    // kept only so old calls don't crash
+  }
+
   void addDailyRaw({
     required int healthRaw,
     required int energyRaw,
     required int staminaRaw,
   }) {
-    if (!_ready) return;
-
-    _box!.put(rawHealthKey, rawHealth + healthRaw);
-    _box!.put(rawEnergyKey, rawEnergy + energyRaw);
-    _box!.put(rawStaminaKey, rawStamina + staminaRaw);
+    // deprecated raw system – no-op
   }
 
   // -------------------------
-  // 💧 WATER → DAILY STAMINA (INSTANT)
+  // GETTERS
   // -------------------------
-  void addStaminaFromWater() {
-    if (!_ready) return;
+  AvatarHive get avatar => _avatarBox.get(_avatarKey)!;
 
-    _ensureTodayStamina();
+  int get weeklyJunkCount =>
+      _metaBox.get(_weeklyJunkKey, defaultValue: 0) as int;
 
-    final current = dailyStaminaPreview;
-    final updated =
-        (current + waterStaminaIncrement).clamp(0.0, maxDailyStamina);
-
-    _box!.put(dailyStaminaPreviewKey, updated);
-  }
+  double get dailyStaminaPreview =>
+      (_metaBox.get(_dailyStaminaPreviewKey) as double?) ??
+      avatar.stamina;
 
   // -------------------------
-  // FINALIZE WEEK (SAT 4 PM)
+  // APPLY HEALTH + ENERGY
   // -------------------------
-  void finalizeWeek() {
-    if (!_ready) return;
+  void applyHealthEnergy({
+    required double healthDelta,
+    required double energyDelta,
+    required bool junkConsumed,
+  }) {
+    final a = avatar;
 
-    final avatarData = avatar;
+    a.health =
+        (a.health + healthDelta).clamp(0.0, maxHealth);
+    a.energy =
+        (a.energy + energyDelta).clamp(0.0, maxEnergy);
 
-    avatarData.health =
-        AvatarLogic.scaleWeeklyRawToStat(rawHealth).toDouble();
-    avatarData.energy =
-        AvatarLogic.scaleWeeklyRawToStat(rawEnergy).toDouble();
-    avatarData.stamina =
-        AvatarLogic.scaleWeeklyRawToStat(rawStamina).toDouble();
+    a.save();
 
-    avatarData.save();
-
-    // align daily preview with finalized stamina
-    _box!.put(dailyStaminaPreviewKey, avatarData.stamina);
-  }
-
-  // -------------------------
-  // RESET WEEK
-  // -------------------------
-  void resetWeek() {
-    if (!_ready) return;
-
-    _box!.put(rawHealthKey, 0);
-    _box!.put(rawEnergyKey, 0);
-    _box!.put(rawStaminaKey, 0);
-  }
-
-  // -------------------------
-  // DAILY STAMINA RESET
-  // -------------------------
-  void _ensureTodayStamina() {
-    if (!_ready) return;
-
-    final today = _todayKey();
-    final saved = _box!.get(dailyStaminaDateKey);
-
-    if (saved != today) {
-      _box!.put(dailyStaminaDateKey, today);
-      _box!.put(dailyStaminaPreviewKey, avatar.stamina);
+    if (junkConsumed) {
+      _metaBox.put(_weeklyJunkKey, weeklyJunkCount + 1);
     }
   }
 
   // -------------------------
-  // WEEK HANDLING
+  // 💧 WATER → STAMINA
+  // -------------------------
+  void addStaminaFromWater() {
+    _ensureTodayStamina();
+
+    final double updated =
+        (dailyStaminaPreview + waterStaminaIncrement)
+            .clamp(0.0, maxStamina)
+            .toDouble();
+
+    _metaBox.put(_dailyStaminaPreviewKey, updated);
+
+    final a = avatar;
+    a.stamina = updated;
+    a.save();
+  }
+
+  // -------------------------
+  // DAILY RESET
+  // -------------------------
+  void _ensureTodayStamina() {
+    final today = _todayKey();
+    final saved = _metaBox.get(_dailyStaminaDateKey);
+
+    if (saved != today) {
+      _metaBox.put(_dailyStaminaDateKey, today);
+      _metaBox.put(_dailyStaminaPreviewKey, avatar.stamina);
+    }
+  }
+
+  // -------------------------
+  // WEEK RESET
   // -------------------------
   void _ensureWeek() {
-    if (!_ready) return;
-
     final currentWeek = _currentWeekId();
-    final savedWeek = _box!.get(weekKey);
+    final savedWeek = _metaBox.get(_weekKey);
 
     if (savedWeek != currentWeek) {
-      resetWeek();
-      _box!.put(weekKey, currentWeek);
+      _metaBox.put(_weekKey, currentWeek);
+      _metaBox.put(_weeklyJunkKey, 0);
     }
   }
 
   String _todayKey() {
-    final now = DateTime.now();
-    return '${now.year}-${now.month}-${now.day}';
+    final n = DateTime.now();
+    return '${n.year}-${n.month}-${n.day}';
   }
 
   String _currentWeekId() {
-    final now = DateTime.now();
+    final n = DateTime.now();
     final sunday =
-        now.subtract(Duration(days: now.weekday % 7));
+        n.subtract(Duration(days: n.weekday % 7));
     return '${sunday.year}-${sunday.month}-${sunday.day}';
   }
 }
