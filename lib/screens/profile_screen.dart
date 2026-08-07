@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_state.dart';
 import '../core/nutrition_store.dart';
-import '../auth/login_screen.dart';
 import 'reminders_screen.dart';
 import '../services/notification_service.dart';
 import '../main.dart';
@@ -331,7 +330,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(builder: (_) => const AppGate()),
       (_) => false,
     );
   }

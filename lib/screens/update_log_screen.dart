@@ -149,12 +149,7 @@ class UpdateLogScreen extends StatelessWidget {
                       ),
                       _updateItem(
                         '📝 Describe Your Meal',
-                        'New feature coming soon: Instead of just photos, you can describe your lunch in words to get instant nutrition data.',
-                        isUpcoming: true,
-                      ),
-                      _updateItem(
-                        '🕹️ Gaming World Integration',
-                        'Building the connection between your real-world health stats and the in-app gaming environment.\nThinking about a game storyline. Stay tuned!!!',
+                        'Describe your lunch in words or voice to get instant nutrition data.',
                         isUpcoming: true,
                       ),
                       _updateItem(
@@ -162,6 +157,7 @@ class UpdateLogScreen extends StatelessWidget {
                         'We want the "Default HIW" vibe to be perfect. When there are no festivals or sports events, what aesthetic fits health and wealth best? Drop your feedback or design ideas to help us set the standard look! 🤝',
                         isUpcoming: true,
                       ),
+
                       _updateItem(
                         '🌐 Website & Community',
                         'We are building an official HIW landing page and a WhatsApp community for exclusive sneak peeks, live updates, and direct feedback channels. Stay tuned! 🚀',

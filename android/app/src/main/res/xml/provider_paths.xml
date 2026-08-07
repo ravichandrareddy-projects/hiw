@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Camera captures go into app cache dir -->
+    <cache-path name="camera_images" path="." />
+    <!-- Also cover external cache just in case -->
+    <external-cache-path name="camera_images_ext" path="." />
+    <!-- Files dir -->
+    <files-path name="files" path="." />
+</paths>

@@ -95,11 +95,11 @@ late int dailyTargetCalories;
   void initState() {
     super.initState();
 
-     dailyTargetCalories = _nutritionStore.dailyTargetCalories;
-    assert(
-  dailyTargetCalories > 0,
-  'Daily calories not set. Login flow must run first.',
-);
+    dailyTargetCalories = _nutritionStore.dailyTargetCalories;
+    if (dailyTargetCalories <= 0) {
+      dailyTargetCalories = 2000;
+      _nutritionStore.setDailyTargetCalories(2000);
+    }
 
     Future.microtask(() async {
       await _waterStore.init();
@@ -234,9 +234,7 @@ late int dailyTargetCalories;
 
             if (scannedFoodImage != null) _foodImage(),
 
-            if (scannedFoodImage != null &&
-                detectedFoodLabel != null &&
-                foodAddons.containsKey(detectedFoodLabel))
+            if (scannedFoodImage != null && detectedFoodLabel != null)
               _addonsEntry(),
 
             SizedBox(height: 4.h),
@@ -796,50 +794,119 @@ late int dailyTargetCalories;
         ),
       );
 
- Widget _addonsEntry() => GlassCard(
-  child: ListTile(
-    leading: Icon(Icons.restaurant, color: Theme.of(context).iconTheme.color),
-    title: Text(
-      'Customize ${detectedFoodLabel!.toUpperCase()}',
-      style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
-    ),
-    trailing: Icon(
-      Icons.arrow_forward_ios,
-      size: 16,
-      color: Theme.of(context).iconTheme.color,
-    ),
-    onTap: () async {
-      final result = await Navigator.push<Map<String, dynamic>>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GenericAddonsScreen(
-            foodLabel: detectedFoodLabel!,
-            addons: foodAddons[detectedFoodLabel!]!,
+  Widget _addonsEntry() {
+    final bool hasAddons = foodAddons.containsKey(detectedFoodLabel);
+    final String cleanTitle = detectedFoodLabel!
+        .split('_')
+        .map((w) => w.isNotEmpty
+            ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
+            : '')
+        .join(' ');
+
+    return GlassCard(
+      child: ListTile(
+        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
+        leading: Container(
+          padding: EdgeInsets.all(10.r),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF00E5FF), Color(0xFF3A86FF)],
+            ),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.cyanAccent.withOpacity(0.35),
+                blurRadius: 10.r,
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.restaurant_menu_rounded,
+            color: Colors.white,
+            size: 22,
           ),
         ),
-      );
+        title: Text(
+          hasAddons ? 'Customize & Add $cleanTitle' : 'Quick Add $cleanTitle',
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 15.sp,
+          ),
+        ),
+        subtitle: Text(
+          hasAddons
+              ? 'Adjust portions, sides & extras'
+              : 'Add directly to today\'s meal journal',
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white70,
+            fontSize: 12.sp,
+          ),
+        ),
+        trailing: Container(
+          padding: EdgeInsets.all(8.r),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: Icon(
+            hasAddons ? Icons.tune_rounded : Icons.add_circle_outline_rounded,
+            size: 20,
+            color: Colors.cyanAccent,
+          ),
+        ),
+        onTap: () async {
+          if (hasAddons) {
+            final result = await Navigator.push<Map<String, dynamic>>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => GenericAddonsScreen(
+                  foodLabel: detectedFoodLabel!,
+                  addons: foodAddons[detectedFoodLabel!]!,
+                ),
+              ),
+            );
 
-      if (result != null) {
-        final food = calculateFoodFromAddons(
-          foodLabel: detectedFoodLabel!,
-          addons: result,
-          mealType: MealType.values[selectedMeal],
-        );
+            if (result != null) {
+              final food = calculateFoodFromAddons(
+                foodLabel: detectedFoodLabel!,
+                addons: result,
+                mealType: MealType.values[selectedMeal],
+              );
 
-        _nutritionStore.addFood(food);
-        _healthEngine.applyFood(food);
-        HistoryStore().addFood(food);
+              _nutritionStore.addFood(food);
+              _healthEngine.applyFood(food);
+              HistoryStore().addFood(food);
 
-        setState(() {
-          confirmedFood = food;
-          scannedFoodImage = null;
-          detectedFoodLabel = null;
-          _scanApplied = false;
-        });
-      }
-    },
-  ),
-);
+              setState(() {
+                confirmedFood = food;
+                scannedFoodImage = null;
+                detectedFoodLabel = null;
+                _scanApplied = false;
+              });
+            }
+          } else {
+            final food = calculateFoodFromAddons(
+              foodLabel: detectedFoodLabel!,
+              addons: {},
+              mealType: MealType.values[selectedMeal],
+            );
+
+            _nutritionStore.addFood(food);
+            _healthEngine.applyFood(food);
+            HistoryStore().addFood(food);
+
+            setState(() {
+              confirmedFood = food;
+              scannedFoodImage = null;
+              detectedFoodLabel = null;
+              _scanApplied = false;
+            });
+          }
+        },
+      ),
+    );
+  }
 
 
   // =============================
@@ -947,7 +1014,7 @@ late int dailyTargetCalories;
       );
 
   Widget _mealSelector() => GlassCard(
-        padding: EdgeInsets.all(8.r),
+        padding: EdgeInsets.all(6.r),
         child: Row(
           children: List.generate(meals.length, (i) {
             final selected = selectedMeal == i;
@@ -955,22 +1022,39 @@ late int dailyTargetCalories;
               child: GestureDetector(
                 onTap: () => setState(() => selectedMeal = i),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: EdgeInsets.symmetric(vertical: 10),
-                  margin: EdgeInsets.symmetric(horizontal: 4.w),
+                  duration: const Duration(milliseconds: 240),
+                  curve: Curves.easeInOut,
+                  padding: EdgeInsets.symmetric(vertical: 10.h),
+                  margin: EdgeInsets.symmetric(horizontal: 3.w),
                   decoration: BoxDecoration(
-                    color: selected
-                        ? Colors.cyanAccent.withOpacity(0.30)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12.r),
+                    gradient: selected
+                        ? const LinearGradient(
+                            colors: [Color(0xFF00E5FF), Color(0xFF3A86FF)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
+                    color: selected ? null : Colors.transparent,
+                    borderRadius: BorderRadius.circular(16.r),
+                    boxShadow: selected
+                        ? [
+                            BoxShadow(
+                              color: Colors.cyanAccent.withOpacity(0.35),
+                              blurRadius: 10.r,
+                              offset: const Offset(0, 2),
+                            )
+                          ]
+                        : [],
                   ),
                   child: Center(
                     child: Text(
                       meals[i],
                       style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color:
-                            selected ? Theme.of(context).textTheme.bodyLarge?.color : Theme.of(context).textTheme.bodyMedium?.color,
+                        fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                        fontSize: 13.sp,
+                        color: selected
+                            ? Colors.white
+                            : (Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white70),
                       ),
                     ),
                   ),

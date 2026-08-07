@@ -41,36 +41,74 @@ class AvatarScreen extends StatelessWidget {
 
         return Stack(
           children: [
-            // CONTD: EXISTING LISTVIEW
             ListView(
               padding: EdgeInsets.all(16.r),
               children: [
                 SizedBox(height: 40.h), // Space for top buttons
                 
                 // -------------------------
-                // AVATAR CARD
+                // AVATAR DASHBOARD CARD
                 // -------------------------
                 Center(
                   child: Container(
-                    width: 200.w,
+                    width: 220.w,
                     height: 240.h,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20.r),
+                      borderRadius: BorderRadius.circular(24.r),
                       gradient: _gradient(stage),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.tealAccent.withOpacity(0.3),
+                          blurRadius: 15,
+                          spreadRadius: 2,
+                        ),
+                      ],
                       border: Border.all(
                         color: Colors.tealAccent.withOpacity(0.8),
                         width: 2.w,
                       ),
                     ),
-                    child: Center(
-                      child: Text(
-                        '3D Avatar\nplaceholder',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          stage == AvatarStage.veryHealthy
+                              ? Icons.workspace_premium
+                              : stage == AvatarStage.healthy
+                                  ? Icons.favorite
+                                  : stage == AvatarStage.normal
+                                      ? Icons.emoji_emotions
+                                      : Icons.battery_alert,
+                          size: 72.r,
+                          color: Colors.black87,
                         ),
-                      ),
+                        SizedBox(height: 12.h),
+                        Text(
+                          'Health Avatar Status',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16.sp,
+                            color: Colors.black,
+                          ),
+                        ),
+                        SizedBox(height: 6.h),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                          child: Text(
+                            stage.name.toUpperCase(),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12.sp,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -82,100 +120,121 @@ class AvatarScreen extends StatelessWidget {
                 // -------------------------
                 _statRow(context, 'Health ', currentHealth),
                 _statRow(context, 'Energy ', currentEnergy),
-                _statRow(context, 'Stamina ', currentStamina), // 🆕
+                _statRow(context, 'Stamina ', currentStamina),
 
-                SizedBox(height: 12.h),
+                SizedBox(height: 24.h),
 
                 Center(
-                  child: Text(
-                    'Stage: ${stage.name.toUpperCase()}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14.sp,
-                    ),
+                  child: Column(
+                    children: [
+                      // 🎮 ENTER GAMING WORLD BUTTON (Coming Soon)
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.sports_esports),
+                        label: const Text('Enter Gaming World'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 14,
+                          ),
+                          backgroundColor: Colors.tealAccent,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18.r),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Scaffold(
+                                backgroundColor: Colors.black,
+                                appBar: AppBar(
+                                  title: const Text('Gaming World', style: TextStyle(color: Colors.white)),
+                                  backgroundColor: Colors.transparent,
+                                  elevation: 0,
+                                  iconTheme: const IconThemeData(color: Colors.white),
+                                ),
+                                body: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.sports_esports, size: 72.r, color: Colors.tealAccent),
+                                      SizedBox(height: 16.h),
+                                      Text(
+                                        'Gaming World\nComing Soon 🎮',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22.sp,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(height: 12.h),
+                                      Text(
+                                        'Stay tuned for interactive avatar worlds!',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 14.sp,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                      SizedBox(height: 10.h),
+
+                      Text(
+                        'ℹ️ Gaming World is under development\n(Coming Soon)',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                          fontSize: 12.sp,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+
+                      SizedBox(height: 20.h),
+
+                      // 🚀 UPDATE LOG BUTTON
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const UpdateLogScreen()),
+                          );
+                        },
+                        icon: const Icon(Icons.history_edu, color: Colors.white),
+                        label: const Text(
+                          'View Update Log',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14.h),
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          elevation: 8,
+                          shadowColor: Colors.black.withOpacity(0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15.r),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-
-            SizedBox(height: 28.h),
-
-            // -------------------------
-            // 🎮 GAME ACCESS (TESTER MODE)
-            // -------------------------
-            Center(
-              child: Column(
-                children: [
-                  ElevatedButton.icon(
-                    icon: Icon(Icons.sports_esports),
-                    label: Text('Enter Gaming World'),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 14,
-                      ),
-                      backgroundColor: Colors.tealAccent,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18.r),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const GamingWorldScreen(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  SizedBox(height: 10.h),
-
-                  // 🔒 OFFICIAL RULE NOTE
-                  Text(
-                    'ℹ️ Official game unlock: Every Saturday at 4:00 PM\n'
-                    '(Tester access currently enabled)',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                      fontSize: 12.sp,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-
-                  SizedBox(height: 25.h),
-
-                  // 🚀 UPDATE LOG BUTTON (NEW)
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const UpdateLogScreen()),
-                      );
-                    },
-                    icon: Icon(Icons.history_edu, color: Colors.white),
-                    label: Text(
-                      'View Update Log',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12.h),
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      elevation: 8,
-                      shadowColor: Colors.black.withOpacity(0.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15.r),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
-          ],
-        ),
+
+
             // ⚙️ SETTINGS / PROFILE BUTTON (Top Right)
             Positioned(
               top: 10,
@@ -272,28 +331,5 @@ class AvatarScreen extends StatelessWidget {
         ],
       ),
     );
-  }
 }
-
-// -------------------------
-// 🎮 PLACEHOLDER GAME WORLD
-// -------------------------
-class GamingWorldScreen extends StatelessWidget {
-  const GamingWorldScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Gaming World')),
-      body: Center(
-        child: Text(
-          '🎮 Gaming World\n\n'
-          'CURRENTLY UNDER CONSTRUCTION\n'
-          'Coming Soon 🚀\nSTAY TUNED!!! ',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18.sp),
-        ),
-      ),
-    );
-  }
 }

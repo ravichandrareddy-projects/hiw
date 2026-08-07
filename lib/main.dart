@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 🔑 SystemNavigator
 
 // theme
 import 'themes/app_theme.dart';
@@ -15,10 +16,7 @@ import 'screens/mood_support_screen.dart';
 import 'screens/update_log_screen.dart'; // 🆕
 import 'package:shared_preferences/shared_preferences.dart'; // 🆕
 
-// auth
-import 'auth/intro_screen.dart';
-import 'auth/login_screen.dart'; // 🆕
-import 'auth/user_info_screen.dart';
+// widgets
 
 // widgets
 import 'widgets/bottom_nav.dart';
@@ -118,22 +116,9 @@ class _AppGateState extends State<AppGate> {
   }
 
   Future<Widget> _decide() async {
-    final loggedIn = await AppState.isLoggedIn();
-    final hasUserInfo = await AppState.hasUserInfo();
     final nutritionStore = NutritionStore();
 
-    // 1️⃣ Fresh user → Intro
-    if (!loggedIn) {
-      return const IntroScreen();
-    }
-
-    // 2️⃣ Logged in but onboarding not done -> Invalid state in new flow
-    // Force re-login to ensure we have credentials
-    if (!hasUserInfo) {
-      return const LoginScreen();
-    }
-
-    // 3️⃣ Ready but not tester-verified
+    // 1️⃣ Tester-verified check (Activation / Dev Code only)
     final verified = await AppState.isTesterVerified();
     if (!verified) {
       return TesterCodeScreen(
@@ -141,7 +126,7 @@ class _AppGateState extends State<AppGate> {
       );
     }
 
-    // 4️⃣ Fully ready user
+    // 2️⃣ Fully ready user
     return const MainShell();
   }
 }
@@ -158,8 +143,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 1;
-  bool _showUpdateLogPrompt = false; // 🆕 Track if we should show roadmap prompt
-  PageController? _pageController; // 🆕 Safely nullable to survive hot reload
+  bool _showUpdateLogPrompt = false;
 
   // -------------------------
   // STORES
@@ -319,7 +303,6 @@ class _MainShellState extends State<MainShell> {
       detectedFoodLabel = normalizedLabel;
       scannedHealthyScore = healthyScore;
       _currentIndex = 1;
-      _pageController?.animateToPage(1, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
 
       // 🚨 FORCE ADDONS SCREEN CHECK
       if (!foodAddons.containsKey(normalizedLabel)) {
@@ -354,7 +337,6 @@ class _MainShellState extends State<MainShell> {
 
       // 🚀 SWITCH TO AVATAR TAB (Index 4)
       _currentIndex = 4;
-      _pageController?.animateToPage(4, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     });
   }
 
@@ -364,20 +346,21 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    // ⚠️ Pages are built inline inside IndexedStack so Flutter keeps them alive.
+    // ScannerScreen gets isActive so camera only runs on tab 2.
     final pages = <Widget>[
       _wrapWithEvent(Padding(padding: EdgeInsets.only(top: 48.h), child: const ChatbotScreen())),
-
       _wrapWithEvent(Padding(padding: EdgeInsets.only(top: 48.h), child: FoodScreen(
         onUpdateAvatar: _updateAvatarFromFood,
         scannedImage: scannedFoodImage,
         detectedLabel: detectedFoodLabel,
         healthyScore: scannedHealthyScore,
       ))),
-
-      _wrapWithEvent(ScannerScreen(onFoodAnalyzed: _onFoodAnalyzed)),
-
+      _wrapWithEvent(ScannerScreen(
+        onFoodAnalyzed: _onFoodAnalyzed,
+        isActive: _currentIndex == 2,
+      )),
       _wrapWithEvent(Padding(padding: EdgeInsets.only(top: 48.h), child: const HistoryScreen())),
-
       _wrapWithEvent(Padding(padding: EdgeInsets.only(top: 48.h), child: AvatarScreen(
         healthPercent: avatarHealth,
         energyPercent: avatarEnergy,
@@ -385,25 +368,33 @@ class _MainShellState extends State<MainShell> {
       ))),
     ];
 
-    _pageController ??= PageController(initialPage: _currentIndex);
 
     return ListenableBuilder(
       listenable: themeManager,
       builder: (context, _) {
-        return Scaffold(
-          extendBody: true, // 📏 ALLOWS BODY TO EXTEND BEHIND BOTTOM NAV
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
+            if (_showUpdateLogPrompt) {
+              await _markUpdateLogPromptSeen();
+              return;
+            }
+            if (_currentIndex != 1) {
+              setState(() => _currentIndex = 1);
+              return;
+            }
+            // If on main tab, exit the app cleanly without crashes
+            await SystemNavigator.pop();
+          },
+          child: Scaffold(
+            extendBody: true, // 📏 ALLOWS BODY TO EXTEND BEHIND BOTTOM NAV
           backgroundColor: Colors.transparent,
           body: Stack(
             children: [
               Positioned.fill(
-                child: PageView(
-                  controller: _pageController,
-                  physics: const ClampingScrollPhysics(), // 🆕 Prevents overscroll effects which might look weird on edges
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentIndex = index;
-                    });
-                  },
+                child: IndexedStack(
+                  index: _currentIndex,
                   children: pages,
                 ),
               ),
@@ -526,15 +517,11 @@ class _MainShellState extends State<MainShell> {
             currentIndex: _currentIndex,
             onTap: (i) {
               setState(() => _currentIndex = i);
-              _pageController?.animateToPage(
-                i,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
             },
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 }

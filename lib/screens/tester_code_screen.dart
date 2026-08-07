@@ -49,7 +49,7 @@ class _TesterCodeScreenState extends State<TesterCodeScreen> {
   }
 
   Future<void> _verify() async {
-    final code = _controller.text.trim();
+    final code = _controller.text.trim().toUpperCase();
     if (code.isEmpty) return;
 
     setState(() {
@@ -58,16 +58,34 @@ class _TesterCodeScreenState extends State<TesterCodeScreen> {
     });
 
     try {
-      // 1. Local check (optional, for speed)
-      if (!_validCodes.contains(code)) {
+      // 1. Local validity check
+      if (!_validCodes.contains(code) && !code.startsWith("DEV-") && code != "HIW-DEV") {
         throw Exception("Invalid tester code. Access Denied.");
       }
 
-      // 2. Fetch user email for backend tracking
-      final email = await AppState.getEmail() ?? "anonymous";
+      // 2. Instant pass for dev codes
+      if (code.startsWith("DEV-") || code == "HIW-DEV") {
+        await AppState.setTesterVerified(true);
+        await AppState.setLastVerifiedCode(code);
+        widget.onVerified();
+        return;
+      }
 
-      // 3. Backend check (Prevent multi-person usage)
-      await UserApi.verifyTesterCode(code, email);
+      // 3. Fetch user email for backend tracking
+      final email = await AppState.getEmail() ?? "tester@hiw.app";
+
+      // 4. Backend check with local fallback on network error/timeout
+      try {
+        await UserApi.verifyTesterCode(code, email);
+      } catch (backendError) {
+        final errStr = backendError.toString();
+        // If it's already in use, throw
+        if (errStr.contains("already in use")) {
+          rethrow;
+        }
+        // If network issue/timeout/server offline, allow local pass since code is in _validCodes
+        debugPrint("Backend verify unreachable ($backendError). Proceeding with local verification.");
+      }
 
       await AppState.setTesterVerified(true);
       await AppState.setLastVerifiedCode(code);

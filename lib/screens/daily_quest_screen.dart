@@ -9,19 +9,27 @@ class DailyQuestScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text('Daily Quests'),
+        title: const Text('Daily Quests', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Center(
-        child: Text(
-          'Daily Quests\nComing Soon 🚀',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 20.sp,
-            fontWeight: FontWeight.w600,
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.rocket_launch_rounded, size: 64.r, color: Colors.tealAccent),
+            SizedBox(height: 16.h),
+            Text(
+              'Daily Quests\nComing Soon 🚀',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
