@@ -2,7 +2,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // 🆕 Hive for chat persistence
-import '../services/groq_service.dart';
+import '../services/gemini_service.dart';
+
 
 import '../services/greeting_detection_service.dart'; // 🆕 AI greeting detection
 import '../widgets/premium_glass_card.dart';
@@ -346,8 +347,24 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       return;
     }
 
-    // 🆕 Always use GroqService for normal chatbot
-    final String reply = await GroqService.ask(text);
+    // ⚡ 1. ZERO-CREDIT OFFLINE GREETING CHECK
+    final offlineGreeting = GreetingDetectionService.getOfflineGreetingReply(text);
+
+    if (offlineGreeting != null) {
+      if (mounted) {
+        final botMessage = "Foodity: $offlineGreeting";
+        setState(() {
+          _messages.add(botMessage);
+          _loading = false;
+        });
+        await _saveMessage(botMessage, 'bot');
+        // Greetings do NOT decrease the daily question limit & do NOT burn API tokens!
+      }
+      return;
+    }
+
+    // 🤖 2. Real Question -> Query Gemini API
+    final String reply = await GeminiService.ask(text);
 
     if (mounted) {
       final botMessage = "Foodity: $reply";
@@ -357,20 +374,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         _loading = false;
       });
       
-      // 🆕 Save bot response to Hive
       await _saveMessage(botMessage, 'bot');
-      
-      // 🆕 AI-POWERED GREETING DETECTION
-      // Ask Groq to determine if it's a greeting or real question
-      final isGreeting = await GreetingDetectionService.isGreeting(text);
-      
-      // 🆕 Decrease limit logic:
-      // - Greetings (AI-detected): Don't decrease
-      // - Normal questions: Decrease
-      if (!isGreeting) {
-        await _decreaseLimit();
-      }
+      await _decreaseLimit();
     }
+
   }
 
 

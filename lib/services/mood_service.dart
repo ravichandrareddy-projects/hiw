@@ -2,64 +2,65 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/ai_config.dart';
 
-/// Dedicated service for mood check interactions with empathetic responses
+/// Dedicated service for mood check interactions with empathetic responses using Gemini API
 class MoodService {
-  static const String _model = "llama-3.3-70b-versatile";
-  
   /// Ask mood check question with empathetic, supportive responses
   static Future<String> askMoodCheck(String userMessage) async {
-    // 🆕 Use main Groq key (same API, no need for separate key)
-    final apiKey = AIConfig.groqKey;
+    final apiKey = AIConfig.geminiApiKey;
     
     if (apiKey.isEmpty) {
-      return "⚠️ Groq API Key not configured. Please set it in AIConfig.dart";
+      return "⚠️ Gemini API Key not configured. Please set it in AIConfig.dart";
     }
     
-    return _makeRequest(userMessage, apiKey);
+    return _makeRequest(userMessage);
   }
   
-  static Future<String> _makeRequest(String message, String apiKey) async {
-    final url = Uri.parse('https://api.groq.com/openai/v1/chat/completions');
+  static Future<String> _makeRequest(String message) async {
+    final url = Uri.parse(AIConfig.geminiEndpoint);
     
     try {
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $apiKey',
         },
         body: jsonEncode({
-          "model": _model,
-          "messages": [
-            {
-              "role": "system",
-              "content": """You are a wise and comforting emotional support AI for the HIW (Health Is Wealth) app. 
-Your goal is to provide immediate, simple comfort and practical remedies.
-
-Guidelines:
-1. Warmly validate the user's feelings.
-2. Ask a gentle, empathetic question to understand WHY they are feeling this way or what exactly is bothering them.
-3. Do NOT just jump straight into giving suggestions or remedies without first understanding their situation and the context.
-4. Keep the entire response empathetic, conversational, and concise.
-5. Once you understand the specific situation from their replies, you can then suggest 1-2 small, practical steps."""
-            },
+          "system_instruction": {
+            "parts": [
+              {
+                "text": "You are a wise and comforting emotional support AI for the HIW (Health Is Wealth) app. "
+                    "Your goal is to provide immediate, simple comfort and practical remedies.\n\n"
+                    "Guidelines:\n"
+                    "1. Warmly validate the user's feelings.\n"
+                    "2. Ask a gentle, empathetic question to understand WHY they are feeling this way or what exactly is bothering them.\n"
+                    "3. Do NOT just jump straight into giving suggestions or remedies without first understanding their situation and the context.\n"
+                    "4. Keep the entire response empathetic, conversational, and concise.\n"
+                    "5. Once you understand the specific situation from their replies, you can then suggest 1-2 small, practical steps."
+              }
+            ]
+          },
+          "contents": [
             {
               "role": "user",
-              "content": message
+              "parts": [
+                {"text": message}
+              ]
             }
           ],
-          "temperature": 0.8, // Higher temperature for more warm, human-like responses
-          "max_tokens": 512,
+          "generationConfig": {
+            "temperature": 0.8,
+            "maxOutputTokens": 512,
+          }
         }),
       ).timeout(
-        const Duration(seconds: 30),
+        const Duration(seconds: 25),
         onTimeout: () {
           print('⚠️ MOOD SERVICE: HTTP request timeout');
           throw Exception('Request timeout');
         },
       );
       
-      if (response.statusCode == 401) {
+      if (response.statusCode == 401 || response.statusCode == 403) {
         return "⚠️ Invalid Mood Check API Key. Please check your key in AIConfig.dart";
       }
       
@@ -70,8 +71,15 @@ Guidelines:
       }
       
       final data = jsonDecode(response.body);
-      if (data['choices'] != null && data['choices'].isNotEmpty) {
-        return data['choices'][0]['message']['content'].toString().trim();
+      final candidates = data['candidates'] as List?;
+      if (candidates != null && candidates.isNotEmpty) {
+        final parts = candidates[0]['content']?['parts'] as List?;
+        if (parts != null && parts.isNotEmpty) {
+          final text = parts[0]['text']?.toString().trim();
+          if (text != null && text.isNotEmpty) {
+            return text;
+          }
+        }
       }
       
       return "I'm here for you. How can I help? 💙";

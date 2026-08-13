@@ -2,7 +2,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/history_store.dart';
-import '../../widgets/premium_glass_card.dart'; // 🆕
+import '../../widgets/premium_glass_card.dart';
 
 class StreakCalendar extends StatefulWidget {
   final DateTime selectedDate;
@@ -41,209 +41,209 @@ class _StreakCalendarState extends State<StreakCalendar> {
 
     return Column(
       children: [
-        // 📅 MONTH HEADER
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.w),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: Icon(Icons.arrow_back_ios, size: 16),
-                onPressed: () => _changeMonth(-1),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
+        // 📅 MONTH HEADER BAR WITH CYBER BADGES
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            InkWell(
+              onTap: () => _changeMonth(-1),
+              borderRadius: BorderRadius.circular(10.r),
+              child: Container(
+                padding: EdgeInsets.all(8.r),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12.r),
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(10.r),
+                  border: Border.all(color: Colors.white10),
                 ),
-                child: Text(
-                  monthName,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
+                child: const Icon(Icons.arrow_back_ios_new, size: 14, color: Colors.tealAccent),
               ),
-              IconButton(
-                icon: Icon(Icons.arrow_forward_ios, size: 16),
-                onPressed: () => _changeMonth(1),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+            ),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+              decoration: BoxDecoration(
+                color: Colors.tealAccent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14.r),
+                border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.tealAccent.withOpacity(0.1),
+                    blurRadius: 8,
+                  )
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_month, size: 14, color: Colors.tealAccent),
+                  SizedBox(width: 8.w),
+                  Text(
+                    monthName.toUpperCase(),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.sp,
+                      letterSpacing: 1.1,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            InkWell(
+              onTap: () => _changeMonth(1),
+              borderRadius: BorderRadius.circular(10.r),
+              child: Container(
+                padding: EdgeInsets.all(8.r),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(10.r),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.tealAccent),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 14.h),
+
+        // 🗓️ CYBER MATRIX GRID CARD
+        PremiumGlassCard(
+          padding: EdgeInsets.all(14.r),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // WEEKDAY LABELS
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day) {
+                  return SizedBox(
+                    width: 32.w,
+                    child: Text(
+                      day,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10.sp,
+                        letterSpacing: 0.5,
+                        color: Colors.tealAccent.withOpacity(0.7),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              SizedBox(height: 10.h),
+
+              // DAYS MATRIX
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 7,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 6,
+                  childAspectRatio: 0.82,
+                ),
+                itemCount: 42, // 6 weeks
+                itemBuilder: (context, index) {
+                  if (index < firstDayOffset || index >= firstDayOffset + daysInMonth) {
+                    return const SizedBox.shrink();
+                  }
+
+                  final dayNum = index - firstDayOffset + 1;
+                  final date = DateTime(_currentMonth.year, _currentMonth.month, dayNum);
+                  
+                  final isSelected = DateUtils.isSameDay(date, widget.selectedDate);
+                  final hasStreak = HistoryStore().hasStreak(date);
+                  final entries = HistoryStore().getEntriesForDate(date);
+                  final hasEntries = entries.isNotEmpty;
+
+                  final now = DateTime.now();
+                  final today = DateTime(now.year, now.month, now.day);
+                  final isFuture = date.isAfter(today);
+
+                  Color dayColor = Colors.white;
+                  if (hasEntries) {
+                    final stats = HistoryStore().getStatsForDate(date);
+                    final healthyPct = stats['healthyPercent'] ?? 0;
+                    if (healthyPct >= 50) {
+                      dayColor = Colors.greenAccent;
+                    } else {
+                      dayColor = Colors.orangeAccent;
+                    }
+                  }
+
+                  return GestureDetector(
+                    onTap: () {
+                      if (isFuture) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Day has not arrived yet! ⏳"),
+                            duration: Duration(seconds: 1),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        return;
+                      }
+                      widget.onDateSelected(date);
+                    },
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (hasStreak)
+                          Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 14.r)
+                        else
+                          SizedBox(height: 14.h),
+                        
+                        Container(
+                          width: 32.w,
+                          height: 32.h,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isSelected
+                                ? Colors.tealAccent
+                                : (isFuture
+                                    ? Colors.white.withOpacity(0.02)
+                                    : (hasEntries
+                                        ? dayColor.withOpacity(0.25)
+                                        : Colors.white.withOpacity(0.06))),
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.white
+                                  : (hasEntries
+                                      ? dayColor.withOpacity(0.6)
+                                      : Colors.white.withOpacity(isFuture ? 0.04 : 0.15)),
+                              width: isSelected ? 2 : 1,
+                            ),
+                            boxShadow: [
+                              if (isSelected)
+                                const BoxShadow(
+                                  color: Colors.tealAccent,
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                ),
+                              if (hasEntries && !isSelected && !isFuture)
+                                BoxShadow(
+                                  color: dayColor.withOpacity(0.3),
+                                  blurRadius: 6,
+                                ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '$dayNum',
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.black
+                                  : (isFuture ? Colors.white24 : Colors.white),
+                              fontWeight: isSelected || hasEntries ? FontWeight.w900 : FontWeight.w500,
+                              fontSize: 12.sp,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
-          ),
-        ),
-        SizedBox(height: 16.h),
-
-        // 🗓️ GRID
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.w),
-          child: PremiumGlassCard(
-            // height: 320.h,  <-- REMOVED FIXED HEIGHT to prevent overflow
-            padding: EdgeInsets.all(12.r),
-            child: Column(
-                mainAxisSize: MainAxisSize.min, // 📏 Shrink to fit content
-                children: [
-                // WEEKDAY LABELS
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: ['M', 'T', 'W', 'Th', 'F', 'S', 'Su'].map((day) {
-                    return SizedBox(
-                      width: 30.w,
-                      child: Text(
-                        day,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).disabledColor,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                SizedBox(height: 10.h),
-                
-                // DAYS GRID
-                GridView.builder(
-                  shrinkWrap: true, // 📏 Required when parent size is min
-                  physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 7,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 4,
-                      childAspectRatio: 0.8, // 📏 Taller cells to fit streak icon + circle
-                    ),
-                    itemCount: 42, // Max grid size (6 weeks)
-                    itemBuilder: (context, index) {
-                      if (index < firstDayOffset || index >= firstDayOffset + daysInMonth) {
-                        return SizedBox.shrink();
-                      }
-
-                      final dayNum = index - firstDayOffset + 1;
-                      final date = DateTime(_currentMonth.year, _currentMonth.month, dayNum);
-                      
-                      final isSelected = DateUtils.isSameDay(date, widget.selectedDate);
-                      final hasStreak = HistoryStore().hasStreak(date);
-                      final entries = HistoryStore().getEntriesForDate(date);
-                      final hasEntries = entries.isNotEmpty;
-
-                      // 🔮 FUTURE CHECK
-                      final now = DateTime.now();
-                      final today = DateTime(now.year, now.month, now.day);
-                      final isFuture = date.isAfter(today);
-
-                      // 🏥 HEALTH CHECK
-                      Color? dayColor;
-                      if (hasEntries) {
-                        // Calculate healthy %
-                        final stats = HistoryStore().getStatsForDate(date);
-                        final healthyPct = stats['healthyPercent'] ?? 0;
-                        if (healthyPct >= 50) {
-                          dayColor = Colors.greenAccent; // Healthy
-                        } else {
-                          dayColor = Colors.redAccent; // Unhealthy
-                        }
-                      }
-
-                      return GestureDetector(
-                        onTap: () {
-                          if (isFuture) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Day has not started yet! ⏳"),
-                                duration: Duration(seconds: 1),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                            return;
-                          }
-                          widget.onDateSelected(date);
-                        },
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (hasStreak)
-                              Icon(Icons.local_fire_department, color: Colors.orange, size: 14)
-                            else
-                              SizedBox(height: 14.h),
-                            
-                            // DATE CIRCLE (Glass Simulation)
-                            Container(
-                              width: 32.w,
-                              height: 32.h,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                // 🎨 BACKGROUND: Selected=Green, Future=Dim, HasData=Red/Green, Else=Glass
-                                color: isSelected
-                                    ? Colors.greenAccent
-                                    : (isFuture 
-                                        ? Colors.white.withOpacity(0.02) 
-                                        : (hasEntries 
-                                            ? (dayColor ?? Colors.white).withOpacity(0.4) 
-                                            : Colors.white.withOpacity(0.08))),
-                                
-                                // 💎 BORDER
-                                border: Border.all(
-                                  color: isSelected 
-                                      ? Colors.white 
-                                      : Colors.white.withOpacity(isFuture ? 0.05 : 0.2),
-                                  width: isSelected ? 1.5 : 1,
-                                ),
-
-                                // 🔦 SHADOWS
-                                boxShadow: [
-                                  if (!isFuture)
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.15),
-                                      blurRadius: 4.r,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  if (isSelected)
-                                    BoxShadow(
-                                      color: Colors.greenAccent,
-                                      blurRadius: 10.r,
-                                      spreadRadius: 1.r,
-                                    ),
-                                  if (hasEntries && !isSelected && !isFuture)
-                                     BoxShadow(
-                                      color: (dayColor ?? Colors.white).withOpacity(0.3),
-                                      blurRadius: 6.r,
-                                    ),
-                                ],
-
-                                // 🌈 GRADIENT (Subtle Glass shine)
-                                gradient: isSelected ? null : LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Colors.white.withOpacity(isFuture ? 0.0 : 0.2),
-                                    Colors.white.withOpacity(0.0),
-                                  ],
-                                ),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '$dayNum',
-                                style: TextStyle(
-                                  color: isSelected 
-                                      ? Colors.white 
-                                      : (isFuture ? Colors.white30 : Colors.white),
-                                  fontWeight: isSelected || hasEntries ? FontWeight.bold : FontWeight.normal,
-                                  fontSize: 12.sp,
-                                  shadows: isSelected ? [Shadow(color: Colors.black26, blurRadius: 2.r)] : null,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                ),
-              ],
-            ),
           ),
         ),
       ],

@@ -11,7 +11,7 @@ class ChristmasGlassCard extends StatelessWidget {
   const ChristmasGlassCard({
     super.key,
     required this.child,
-    this.padding = EdgeInsets.all(16.r),
+    this.padding = const EdgeInsets.all(16),
     this.radius = 20,
   });
 

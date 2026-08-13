@@ -4,8 +4,8 @@ import '../core/nutrition_store.dart';
 class AdminReset {
   /// 🔥 FULL WIPE (DEV ONLY)
   static Future<void> full() async {
-    await HistoryStore().clearAll();
-    await NutritionStore().clearAll();
+    await HistoryStore().clearHistory();
+    NutritionStore().resetDay();
 
     // Future safe adds (not active yet):
     // await MonthStore().clearAll();
@@ -16,7 +16,7 @@ class AdminReset {
 
   /// 🧹 HISTORY ONLY
   static Future<void> historyOnly() async {
-    await HistoryStore().clearAll();
+    await HistoryStore().clearHistory();
     print("🧹 DEV RESET: HISTORY RESET DONE");
   }
 }

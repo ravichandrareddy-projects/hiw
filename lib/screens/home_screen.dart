@@ -18,39 +18,33 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _index = 2; // default Food tab
 
-  late final List<Widget> _screens;
+  List<Widget> _buildScreens() => [
+        const ChatbotScreen(),
 
-  @override
-  void initState() {
-    super.initState();
+        // ✅ REQUIRED PARAM PROVIDED
+        FoodScreen(
+          onUpdateAvatar: ({required int dailyRaw}) {},
+        ),
 
-    _screens = [
-      const ChatbotScreen(),
+        // ✅ REQUIRED PARAM PROVIDED
+        ScannerScreen(
+          isActive: _index == 2,
+          onFoodAnalyzed: ({
+            required ImageProvider image,
+            required String label,
+            required double healthyScore,
+          }) {},
+        ),
 
-      // ✅ REQUIRED PARAM PROVIDED
-      FoodScreen(
-        onUpdateAvatar: ({required int dailyRaw}) {},
-      ),
+        const HistoryScreen(),
 
-      // ✅ REQUIRED PARAM PROVIDED
-      ScannerScreen(
-        onFoodAnalyzed: ({
-          required ImageProvider image,
-          required String label,
-          required double healthyScore,
-        }) {},
-      ),
-
-      const HistoryScreen(),
-
-      // ✅ REQUIRED PARAMS PROVIDED
-      const AvatarScreen(
-        healthPercent: 0,
-        energyPercent: 0,
-        staminaPercent: 0,
-      ),
-    ];
-  }
+        // ✅ REQUIRED PARAMS PROVIDED
+        const AvatarScreen(
+          healthPercent: 0,
+          energyPercent: 0,
+          staminaPercent: 0,
+        ),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       body: IndexedStack(
         index: _index,
-        children: _screens,
+        children: _buildScreens(),
       ),
 
       bottomNavigationBar: BottomNav(

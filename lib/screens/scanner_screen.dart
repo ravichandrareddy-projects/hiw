@@ -5,10 +5,12 @@ import 'dart:ui';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../widgets/glass_card.dart';
+import '../widgets/hiw_loading_overlay.dart';
+import '../widgets/non_food_modal.dart';
+import '../services/food_recognition_service.dart';
 
 class ScannerScreen extends StatefulWidget {
   final void Function({
@@ -33,7 +35,8 @@ class _ScannerScreenState extends State<ScannerScreen>
   CameraController? _controller;
   bool _ready = false;
   XFile? _image;
-  bool _launching = false;
+  bool _isAnalyzing = false;
+  String _loadingStatus = 'Analyzing with HIW T AI...';
 
   // Pulse animation for the scan ring
   late AnimationController _pulseController;
@@ -42,7 +45,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this); // 🔑 lifecycle observer
+    WidgetsBinding.instance.addObserver(this);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -113,7 +116,6 @@ class _ScannerScreenState extends State<ScannerScreen>
     super.dispose();
   }
 
-  /// Pause camera when app goes to background, resume when returning
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final ctrl = _controller;
@@ -129,101 +131,141 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
   }
 
-  /// CAPTURE → immediately send to Google Lens
-  Future<void> _captureAndLaunchLens() async {
-    if (_controller == null || !_controller!.value.isInitialized || _launching) return;
-    setState(() => _launching = true);
+  /// Take picture and perform background food analysis
+  Future<void> _captureAndAnalyze() async {
+    if (_controller == null || !_controller!.value.isInitialized || _isAnalyzing) return;
 
     try {
       final img = await _controller!.takePicture();
-      setState(() => _image = img);
+      if (!mounted) return;
 
-      await _openGoogleLensWithImage(img.path);
+      setState(() {
+        _image = img;
+        _isAnalyzing = true;
+        _loadingStatus = 'Scanning image...';
+      });
+
+      // Stage 1: brief scanning pause
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (mounted) setState(() => _loadingStatus = 'Running HIW Vision AI...');
+
+      // Stage 2: send to Google Cloud Vision API in background
+      final result = await FoodRecognitionService.analyzeImage(File(img.path));
+      if (!mounted) return;
+
+      if (mounted) setState(() => _loadingStatus = 'Matching food database...');
+      await Future.delayed(const Duration(milliseconds: 400));
+      if (!mounted) return;
+
+      setState(() => _isAnalyzing = false);
+
+      if (result.isNotFood) {
+        // ❌ NOT A FOOD → Glassmorphic non-food popup
+        _showNonFoodDialog(result.itemName);
+      } else if (result.isFood && result.isInDataset) {
+        // ✅ FOOD FOUND IN DATASET → clear camera image & show food screen
+        final imgFile = _image;
+        setState(() => _image = null);
+        widget.onFoodAnalyzed(
+          image: FileImage(File(imgFile!.path)),
+          label: result.itemName,
+          healthyScore: result.healthyScore,
+        );
+      } else {
+        // 🔄 FOOD DETECTED BUT NOT IN OUR DATASET YET
+        _showComingSoonDialog(result.itemName);
+      }
     } catch (e) {
       if (mounted) {
+        setState(() => _isAnalyzing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Capture failed: $e')),
+          SnackBar(content: Text('Camera analysis failed: $e')),
         );
       }
-    } finally {
-      if (mounted) setState(() => _launching = false);
     }
   }
 
-  /// Open Google Lens natively with the captured image
-  Future<void> _openGoogleLensWithImage(String imagePath) async {
-    const platform = MethodChannel('com.valtooy.hiw/lens');
-
-    try {
-      // Try native Android intent: share image to Google Lens directly
-      await platform.invokeMethod('openWithGoogleLens', {'path': imagePath});
-    } on MissingPluginException {
-      // Fallback: use Android share intent via platform channel not available,
-      // use url_launcher share workaround
-      await _fallbackShareToLens(imagePath);
-    } on PlatformException catch (e) {
-      debugPrint('Lens intent failed: $e');
-      await _fallbackShareToLens(imagePath);
-    }
-  }
-
-  Future<void> _fallbackShareToLens(String imagePath) async {
-    // Show instructions overlay if Lens intent isn't available
-    if (!mounted) return;
-    showModalBottomSheet(
+  void _showNonFoodDialog(String itemName) {
+    showDialog(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          margin: EdgeInsets.all(16.r),
-          padding: EdgeInsets.all(24.r),
-          decoration: BoxDecoration(
-            color: const Color(0xFF14141E).withOpacity(0.95),
-            borderRadius: BorderRadius.circular(24.r),
-            border: Border.all(color: Colors.white.withOpacity(0.15)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.image_search_rounded, color: Colors.cyanAccent, size: 48.sp),
-              SizedBox(height: 16.h),
-              Text(
-                'Image Captured!',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20.sp,
-                  fontWeight: FontWeight.bold,
-                ),
+      barrierDismissible: false,
+      builder: (ctx) => NonFoodModal(
+        detectedItemName: itemName,
+        onScanAgain: () {
+          if (mounted) setState(() => _image = null);
+        },
+      ),
+    );
+  }
+
+  void _showComingSoonDialog(String itemName) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.symmetric(horizontal: 24.w),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20.r),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              padding: EdgeInsets.all(28.w),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20.r),
+                border: Border.all(color: Colors.white.withOpacity(0.2)),
               ),
-              SizedBox(height: 10.h),
-              Text(
-                'Your photo is saved. Open Google Lens and select this image to identify the food.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white60, fontSize: 13.sp, height: 1.5),
-              ),
-              SizedBox(height: 20.h),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.search_rounded),
-                  label: Text('Retake Photo', style: TextStyle(fontSize: 14.sp)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.cyanAccent.withOpacity(0.15),
-                    foregroundColor: Colors.cyanAccent,
-                    side: const BorderSide(color: Colors.cyanAccent),
-                    padding: EdgeInsets.symmetric(vertical: 14.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14.r),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(14.w),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF00E676).withOpacity(0.15),
+                      border: Border.all(color: const Color(0xFF00E676), width: 1.5),
+                    ),
+                    child: Icon(Icons.hourglass_top_rounded, color: const Color(0xFF00E676), size: 40.r),
+                  ),
+                  SizedBox(height: 16.h),
+                  Text(
+                    'Food Recognized! 🌿',
+                    style: TextStyle(color: Colors.white, fontSize: 20.sp, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    itemName,
+                    style: TextStyle(color: const Color(0xFF00E676), fontSize: 16.sp, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 10.h),
+                  Text(
+                    'Sorry! This item is not yet in our food database.\nComing soon! 🚀',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: const Color(0xFFCBD5E1), fontSize: 14.sp, height: 1.5),
+                  ),
+                  SizedBox(height: 24.h),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00E676),
+                        foregroundColor: Colors.black,
+                        padding: EdgeInsets.symmetric(vertical: 13.h),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                      ),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        if (mounted) setState(() => _image = null);
+                      },
+                      icon: const Icon(Icons.camera_alt_rounded),
+                      label: Text('Scan Again', style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.bold)),
                     ),
                   ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    setState(() => _image = null);
-                  },
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -239,10 +281,10 @@ class _ScannerScreenState extends State<ScannerScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(color: Colors.cyanAccent),
+              const CircularProgressIndicator(color: Color(0xFF00E676)),
               SizedBox(height: 16.h),
               Text(
-                'Starting Camera...',
+                'Starting HIW Camera...',
                 style: TextStyle(color: Colors.white70, fontSize: 14.sp),
               ),
             ],
@@ -253,291 +295,107 @@ class _ScannerScreenState extends State<ScannerScreen>
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: _cameraBody(),
-    );
-  }
-
-  Widget _cameraBody() {
-    return Stack(
-      children: [
-        // ── CAMERA PREVIEW ──
-        if (_image == null)
-          SizedBox.expand(
-            child: FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: _controller!.value.previewSize!.height,
-                height: _controller!.value.previewSize!.width,
-                child: CameraPreview(_controller!),
+      body: Stack(
+        children: [
+          // ── CAMERA PREVIEW OR CAPTURED IMAGE ──
+          if (_image == null)
+            SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _controller!.value.previewSize!.height,
+                  height: _controller!.value.previewSize!.width,
+                  child: CameraPreview(_controller!),
+                ),
+              ),
+            )
+          else
+            SizedBox.expand(
+              child: Image.file(
+                File(_image!.path),
+                fit: BoxFit.cover,
               ),
             ),
-          )
-        else
-          SizedBox.expand(
-            child: Image.file(
-              File(_image!.path),
-              fit: BoxFit.cover,
-            ),
-          ),
 
-        // ── DARK VIGNETTE OVERLAY ──
-        Container(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment.center,
-              radius: 0.75,
-              colors: [
-                Colors.transparent,
-                Colors.black.withOpacity(0.55),
-              ],
-            ),
-          ),
-        ),
-
-        // ── SCAN FRAME (pulsing ring in center) ──
-        if (_image == null)
-          Center(
-            child: AnimatedBuilder(
-              animation: _pulseAnim,
-              builder: (_, __) => Transform.scale(
-                scale: _pulseAnim.value,
+          // ── CLEAR / RETAKE PHOTO (X BUTTON) ──
+          if (_image != null && !_isAnalyzing)
+            Positioned(
+              top: 40.h,
+              right: 20.w,
+              child: GestureDetector(
+                onTap: () {
+                  setState(() => _image = null);
+                },
                 child: Container(
-                  width: 240.w,
-                  height: 240.w,
+                  padding: EdgeInsets.all(12.r),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24.r),
-                    border: Border.all(
-                      color: Colors.cyanAccent.withOpacity(0.75),
-                      width: 2.5.w,
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      // Corner accents
-                      ..._cornerAccents(),
+                    color: Colors.black.withOpacity(0.75),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2.w),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 10.r,
+                      ),
                     ],
+                  ),
+                  child: Icon(
+                    Icons.close_rounded,
+                    color: Colors.white,
+                    size: 28.sp,
                   ),
                 ),
               ),
             ),
-          ),
 
-        // ── TOP HEADER ──
-        SafeArea(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-            child: Row(
-              children: [
-                // Back / retake button
-                if (_image != null)
-                  GestureDetector(
-                    onTap: () => setState(() => _image = null),
-                    child: Container(
-                      padding: EdgeInsets.all(10.r),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white30),
+          // ── BOTTOM SHUTTER BUTTON ──
+          if (!_isAnalyzing && _image == null)
+            Positioned(
+              bottom: 48.h,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: _captureAndAnalyze,
+                  child: Container(
+                    width: 80.w,
+                    height: 80.w,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF00E676), Color(0xFF00B0FF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      child: Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20.sp),
+                      border: Border.all(color: Colors.white, width: 3.5.w),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF00E676).withOpacity(0.5),
+                          blurRadius: 24.r,
+                          spreadRadius: 4.r,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.camera_alt_rounded,
+                      size: 36.sp,
+                      color: Colors.white,
                     ),
                   ),
-                const Spacer(),
-                // Title badge
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.55),
-                    borderRadius: BorderRadius.circular(22.r),
-                    border: Border.all(color: Colors.cyanAccent.withOpacity(0.4), width: 1.w),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.center_focus_strong_rounded, color: Colors.cyanAccent, size: 16.sp),
-                      SizedBox(width: 7.w),
-                      Text(
-                        'Point & Shoot → Google Lens',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-                const Spacer(),
-              ],
+              ),
             ),
-          ),
-        ),
 
-        // ── HINT TEXT ──
-        if (_image == null)
-          Positioned(
-            bottom: 170.h,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Icon(Icons.lens_blur_rounded, color: Colors.white38, size: 22.sp),
-                SizedBox(height: 6.h),
-                Text(
-                  'Aim at food & tap the button',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 13.sp,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                SizedBox(height: 4.h),
-                Text(
-                  'Google Lens will instantly identify it ⚡',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.cyanAccent.withOpacity(0.7),
-                    fontSize: 11.sp,
-                  ),
-                ),
-              ],
+          // ── HIW CUSTOM LOADING OVERLAY ──
+          if (_isAnalyzing)
+            Positioned.fill(
+              child: HIWLoadingOverlay(
+                statusText: _loadingStatus,
+              ),
             ),
-          ),
-
-        // ── BOTTOM CAPTURE BUTTON ──
-        Positioned(
-          bottom: 48.h,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: _image == null
-                ? GestureDetector(
-                    onTap: _launching ? null : _captureAndLaunchLens,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 80.w,
-                      height: 80.w,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF00E5FF), Color(0xFF3A86FF)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        border: Border.all(color: Colors.white, width: 3.5.w),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.cyanAccent.withOpacity(_launching ? 0.2 : 0.5),
-                            blurRadius: 24.r,
-                            spreadRadius: 4.r,
-                          ),
-                        ],
-                      ),
-                      child: _launching
-                          ? const CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 3,
-                            )
-                          : Icon(
-                              Icons.camera_alt_rounded,
-                              size: 36.sp,
-                              color: Colors.white,
-                            ),
-                    ),
-                  )
-                // After capture — show "Open in Lens" button
-                : GestureDetector(
-                    onTap: () => _openGoogleLensWithImage(_image!.path),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 16.h),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF00E5FF), Color(0xFF3A86FF)],
-                        ),
-                        borderRadius: BorderRadius.circular(30.r),
-                        border: Border.all(color: Colors.white, width: 2.w),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.cyanAccent.withOpacity(0.4),
-                            blurRadius: 16.r,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.image_search_rounded, color: Colors.white, size: 22.sp),
-                          SizedBox(width: 10.w),
-                          Text(
-                            'Open in Google Lens',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15.sp,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  /// Corner accent decorations for the scan frame
-  List<Widget> _cornerAccents() {
-    const c = Colors.cyanAccent;
-    const size = 24.0;
-    const thick = 3.0;
-    return [
-      // TL
-      Positioned(top: 0, left: 0, child: _corner(c, size, thick, top: true, left: true)),
-      // TR
-      Positioned(top: 0, right: 0, child: _corner(c, size, thick, top: true, left: false)),
-      // BL
-      Positioned(bottom: 0, left: 0, child: _corner(c, size, thick, top: false, left: true)),
-      // BR
-      Positioned(bottom: 0, right: 0, child: _corner(c, size, thick, top: false, left: false)),
-    ];
-  }
-
-  Widget _corner(Color color, double size, double thick,
-      {required bool top, required bool left}) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: _CornerPainter(color: color, thick: thick, top: top, left: left),
-    );
-  }
-}
-
-class _CornerPainter extends CustomPainter {
-  final Color color;
-  final double thick;
-  final bool top;
-  final bool left;
-
-  _CornerPainter({required this.color, required this.thick, required this.top, required this.left});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = thick
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-
-    final x = left ? 0.0 : size.width;
-    final y = top ? 0.0 : size.height;
-    final dx = left ? size.width : -size.width;
-    final dy = top ? size.height : -size.height;
-
-    canvas.drawLine(Offset(x, y), Offset(x + dx, y), paint);
-    canvas.drawLine(Offset(x, y), Offset(x, y + dy), paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
