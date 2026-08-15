@@ -351,6 +351,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text('Select Festive Vibe', style: TextStyle(color: Colors.white, fontSize: 18.sp, fontWeight: FontWeight.bold)),
               SizedBox(height: 24.h),
               _themeOption(context, 'default', 'Default HIW'),
+              _themeOption(context, 'plain', 'Plain Theme 🌿'),
               _themeOption(context, 'sankranti', 'Sankranti 🪁'),
               _themeOption(context, 'christmas', 'Christmas 🎄'),
               SizedBox(height: 16.h),

@@ -30,8 +30,20 @@ class GlassCard extends StatelessWidget {
     List<BoxShadow> shadows = [];
     bool showSnow = false;
 
-    // 🎄 FESTIVE THEME OVERRIDES (TOP PRIORITY)
-    if (primaryColor == Colors.redAccent) {
+    // 🎄 FESTIVE & THEME OVERRIDES (TOP PRIORITY)
+    if (tm.currentThemeName == 'plain' || primaryColor == const Color(0xFF10B981)) {
+      // Plain Theme Style - Clean solid light cards with crisp border & shadow
+      glassColor = Colors.white;
+      blur = 0; // Crisp non-blurred background
+      borderColor = const Color(0xFFE5E7EB);
+      shadows = [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.04),
+          blurRadius: 10.r,
+          offset: const Offset(0, 4),
+        ),
+      ];
+    } else if (primaryColor == Colors.redAccent) {
       // Christmas Theme Style - Deeper Night Vibe
       glassColor = Colors.black.withOpacity(0.4);
       blur = 20;

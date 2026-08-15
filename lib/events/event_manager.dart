@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import '../core/theme_manager.dart'; // 🆕
 import 'christmas/christmas_background.dart';
 import 'sankranti/sankranti_background.dart';
+import 'plain_background.dart';
 import 'time_animations.dart';
 
 class EventManager {
   static Widget wrapWithBackground(String theme, Widget child) {
     switch (theme) {
+      case 'plain':
+        return PlainBackground(child: child);
       case 'christmas':
         return ChristmasBackground(child: child);
       case 'sankranti':

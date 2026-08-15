@@ -94,7 +94,30 @@ class AppTheme {
     useMaterial3: true,
   );
 
+  // ⚪ PLAIN THEME (Clean, Minimal, Light Card-Based Theme)
+  static ThemeData plainTheme = ThemeData(
+    brightness: Brightness.light,
+    scaffoldBackgroundColor: const Color(0xFFF7F9FC),
+    primaryColor: const Color(0xFF10B981), // Fresh clean green accent
+    cardColor: Colors.white,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: const Color(0xFF10B981),
+      brightness: Brightness.light,
+      primary: const Color(0xFF10B981),
+      surface: Colors.white,
+      background: const Color(0xFFF7F9FC),
+    ),
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: Color(0xFF1F2937), fontWeight: FontWeight.w600),
+      bodyMedium: TextStyle(color: Color(0xFF4B5563)),
+      titleLarge: TextStyle(color: Color(0xFF111827), fontWeight: FontWeight.bold),
+    ),
+    iconTheme: const IconThemeData(color: Color(0xFF10B981)),
+    useMaterial3: true,
+  );
+
   static ThemeData getTheme(String name) {
+    if (name == 'plain') return plainTheme;
     if (name == 'christmas') return christmasTheme;
     if (name == 'sankranti') return sankrantiTheme;
     

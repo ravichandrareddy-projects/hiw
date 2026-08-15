@@ -1,6 +1,7 @@
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../core/theme_manager.dart';
 
 class BottomNav extends StatelessWidget {
   final int currentIndex;
@@ -11,6 +12,7 @@ class BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeColor = Theme.of(context).primaryColor;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tm = ThemeManager();
 
     return ClipRRect(
       borderRadius: BorderRadius.only(
@@ -21,13 +23,17 @@ class BottomNav extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
           decoration: BoxDecoration(
-            color: isDark ? Colors.black.withOpacity(0.4) : Colors.white.withOpacity(0.25),
+            color: tm.currentThemeName == 'plain'
+                ? Colors.white.withOpacity(0.9)
+                : (isDark ? Colors.black.withOpacity(0.4) : Colors.white.withOpacity(0.25)),
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(18.r),
               topRight: Radius.circular(18.r),
             ),
             border: Border.all(
-              color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04),
+              color: tm.currentThemeName == 'plain'
+                  ? const Color(0xFFE5E7EB)
+                  : (isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04)),
               width: 0.5.w,
             ),
           ),
