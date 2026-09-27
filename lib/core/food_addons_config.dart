@@ -36,8 +36,13 @@ class FoodAddon {
 final Map<String, List<FoodAddon>> foodAddons = {
   // -------- BREAKFAST --------
   "dosa": [
-    FoodAddon(id: "count", title: "Number of Dosa", type: AddonType.counter, min: 1, max: 6),
-    FoodAddon(
+    const FoodAddon(
+        id: "count",
+        title: "Number of Dosa",
+        type: AddonType.counter,
+        min: 1,
+        max: 6),
+    const FoodAddon(
       id: "sides",
       title: "Sides",
       type: AddonType.multiChoice,
@@ -49,8 +54,13 @@ final Map<String, List<FoodAddon>> foodAddons = {
   ],
 
   "idli": [
-    FoodAddon(id: "count", title: "Number of Idli", type: AddonType.counter, min: 1, max: 6),
-    FoodAddon(
+    const FoodAddon(
+        id: "count",
+        title: "Number of Idli",
+        type: AddonType.counter,
+        min: 1,
+        max: 6),
+    const FoodAddon(
       id: "sides",
       title: "Sides",
       type: AddonType.multiChoice,
@@ -62,15 +72,25 @@ final Map<String, List<FoodAddon>> foodAddons = {
   ],
 
   "vada": [
-    FoodAddon(id: "count", title: "Number of Vada", type: AddonType.counter, min: 1, max: 6),
+    const FoodAddon(
+        id: "count",
+        title: "Number of Vada",
+        type: AddonType.counter,
+        min: 1,
+        max: 6),
   ],
 
   "boiled_egg": [
-    FoodAddon(id: "count", title: "Egg Count", type: AddonType.counter, min: 1, max: 6),
+    const FoodAddon(
+        id: "count",
+        title: "Egg Count",
+        type: AddonType.counter,
+        min: 1,
+        max: 6),
   ],
 
   "omelette": [
-    FoodAddon(
+    const FoodAddon(
       id: "eggs",
       title: "Egg Count",
       type: AddonType.singleChoice,
@@ -83,32 +103,50 @@ final Map<String, List<FoodAddon>> foodAddons = {
 
   // -------- LUNCH / DINNER --------
   "chicken_biryani": [
-    FoodAddon(id: "plate", title: "Plates", type: AddonType.counter, min: 1, max: 3),
+    const FoodAddon(
+        id: "plate", title: "Plates", type: AddonType.counter, min: 1, max: 3),
   ],
 
   "dal_curry": [
-    FoodAddon(id: "serving", title: "Servings", type: AddonType.counter, min: 1, max: 3),
+    const FoodAddon(
+        id: "serving",
+        title: "Servings",
+        type: AddonType.counter,
+        min: 1,
+        max: 3),
   ],
 
   "rice": [
-    FoodAddon(id: "plate", title: "Plates", type: AddonType.counter, min: 1, max: 3),
+    const FoodAddon(
+        id: "plate", title: "Plates", type: AddonType.counter, min: 1, max: 3),
   ],
 
   "roti": [
-    FoodAddon(id: "count", title: "Number of Roti", type: AddonType.counter, min: 1, max: 8),
+    const FoodAddon(
+        id: "count",
+        title: "Number of Roti",
+        type: AddonType.counter,
+        min: 1,
+        max: 8),
   ],
 
   "sambar": [
-    FoodAddon(id: "bowl", title: "Bowls", type: AddonType.counter, min: 1, max: 3),
+    const FoodAddon(
+        id: "bowl", title: "Bowls", type: AddonType.counter, min: 1, max: 3),
   ],
 
   "puri": [
-    FoodAddon(id: "count", title: "Number of Puri", type: AddonType.counter, min: 1, max: 6),
+    const FoodAddon(
+        id: "count",
+        title: "Number of Puri",
+        type: AddonType.counter,
+        min: 1,
+        max: 6),
   ],
 
   // -------- FAST FOOD --------
   "burger": [
-    FoodAddon(
+    const FoodAddon(
       id: "type",
       title: "Burger Type",
       type: AddonType.singleChoice,
@@ -120,7 +158,7 @@ final Map<String, List<FoodAddon>> foodAddons = {
   ],
 
   "pizza": [
-    FoodAddon(
+    const FoodAddon(
       id: "size",
       title: "Pizza Size",
       type: AddonType.singleChoice,
@@ -133,7 +171,7 @@ final Map<String, List<FoodAddon>> foodAddons = {
   ],
 
   "noodles": [
-    FoodAddon(
+    const FoodAddon(
       id: "type",
       title: "Noodles Type",
       type: AddonType.singleChoice,
@@ -146,26 +184,36 @@ final Map<String, List<FoodAddon>> foodAddons = {
   ],
 
   "samosa": [
-    FoodAddon(id: "count", title: "Number of Samosa", type: AddonType.counter, min: 1, max: 6),
+    const FoodAddon(
+        id: "count",
+        title: "Number of Samosa",
+        type: AddonType.counter,
+        min: 1,
+        max: 6),
   ],
 
   // -------- SWEETS / DRINKS --------
   "gulab_jamun": [
-    FoodAddon(id: "count", title: "Pieces", type: AddonType.counter, min: 1, max: 6),
+    const FoodAddon(
+        id: "count", title: "Pieces", type: AddonType.counter, min: 1, max: 6),
   ],
 
   "jalebi": [
-    FoodAddon(id: "count", title: "Pieces", type: AddonType.counter, min: 1, max: 6),
+    const FoodAddon(
+        id: "count", title: "Pieces", type: AddonType.counter, min: 1, max: 6),
   ],
 
   "soft_drinks": [
-    FoodAddon(id: "glass", title: "Glasses", type: AddonType.counter, min: 1, max: 3),
+    const FoodAddon(
+        id: "glass", title: "Glasses", type: AddonType.counter, min: 1, max: 3),
   ],
 
   "mango_pickle": [
-    FoodAddon(id: "spoon", title: "Spoons", type: AddonType.counter, min: 1, max: 3),
+    const FoodAddon(
+        id: "spoon", title: "Spoons", type: AddonType.counter, min: 1, max: 3),
   ],
   "manchurian": [
-    FoodAddon(id: "plate", title: "Plates", type: AddonType.counter, min: 1, max: 3),
+    const FoodAddon(
+        id: "plate", title: "Plates", type: AddonType.counter, min: 1, max: 3),
   ],
 };

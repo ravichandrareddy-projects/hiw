@@ -33,6 +33,9 @@ class _HomeScreenState extends State<HomeScreen> {
             required ImageProvider image,
             required String label,
             required double healthyScore,
+            required double quantity,
+            nutritionRecord,
+            required items,
           }) {},
         ),
 

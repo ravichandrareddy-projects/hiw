@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'dart:math' as math;
+import '../themes/hiw_theme.dart';
 
 class HIWLoadingOverlay extends StatefulWidget {
   final String statusText;
@@ -47,8 +47,11 @@ class _HIWLoadingOverlayState extends State<HIWLoadingOverlay>
 
   @override
   Widget build(BuildContext context) {
+    // Brand glow follows the active theme accent; the veil stays dark
+    // so it stays readable over the camera in every theme.
+    final accent = HiwTheme.of(context).accentColor;
     return Container(
-      color: Colors.black.withOpacity(0.75),
+      color: Colors.black.withValues(alpha: 0.75),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -65,14 +68,14 @@ class _HIWLoadingOverlayState extends State<HIWLoadingOverlay>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFF00E676).withOpacity(0.3),
+                        color: accent.withValues(alpha: 0.3),
                         width: 3.w,
                       ),
                       gradient: SweepGradient(
                         colors: [
-                          const Color(0xFF00E676).withOpacity(0.0),
-                          const Color(0xFF00E676),
-                          const Color(0xFF00B0FF),
+                          accent.withValues(alpha: 0.0),
+                          accent,
+                          accent,
                         ],
                       ),
                     ),
@@ -90,13 +93,13 @@ class _HIWLoadingOverlayState extends State<HIWLoadingOverlay>
                       color: const Color(0xFF1E293B),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF00E676).withOpacity(0.4),
+                          color: accent.withValues(alpha: 0.4),
                           blurRadius: 20.r,
                           spreadRadius: 2.r,
                         ),
                       ],
                       border: Border.all(
-                        color: const Color(0xFF00E676),
+                        color: accent,
                         width: 2.w,
                       ),
                     ),
@@ -104,7 +107,7 @@ class _HIWLoadingOverlayState extends State<HIWLoadingOverlay>
                       child: Icon(
                         Icons.restaurant_rounded,
                         size: 44.r,
-                        color: const Color(0xFF00E676),
+                        color: accent,
                       ),
                     ),
                   ),

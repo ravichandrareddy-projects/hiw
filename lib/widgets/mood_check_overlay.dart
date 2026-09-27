@@ -2,6 +2,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../widgets/premium_glass_card.dart';
+import '../themes/hiw_theme.dart';
 
 /// Proactive mood check overlay with blur effect
 /// Shows 3-4 times per day to check user's emotional state
@@ -21,6 +22,7 @@ class MoodCheckOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = HiwTheme.of(context);
     return Material(
       color: Colors.transparent,
       child: Stack(
@@ -29,10 +31,10 @@ class MoodCheckOverlay extends StatelessWidget {
           BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
             ),
           ),
-          
+
           // Centered mood check card
           Center(
             child: Padding(
@@ -47,23 +49,24 @@ class MoodCheckOverlay extends StatelessWidget {
                     Align(
                       alignment: Alignment.topRight,
                       child: IconButton(
-                        icon: Icon(Icons.close, color: Colors.white70, size: 20),
+                        icon: Icon(Icons.close,
+                            color: t.mutedColor, size: 20),
                         onPressed: onDismiss,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
                     ),
-                    
+
                     SizedBox(height: 8.h),
-                    
+
                     // Emoji
                     Text(
                       '💙',
                       style: TextStyle(fontSize: 48.sp),
                     ),
-                    
+
                     SizedBox(height: 16.h),
-                    
+
                     // Question
                     Text(
                       'How are you feeling\nright now?',
@@ -71,24 +74,24 @@ class MoodCheckOverlay extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 22.sp,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: t.inkColor,
                         height: 1.3.h,
                       ),
                     ),
-                    
+
                     SizedBox(height: 8.h),
-                    
+
                     Text(
                       'Your wellbeing matters to us',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14.sp,
-                        color: Colors.white70,
+                        color: t.mutedColor,
                       ),
                     ),
-                    
+
                     SizedBox(height: 32.h),
-                    
+
                     // Response buttons
                     _MoodButton(
                       emoji: '😊',
@@ -96,18 +99,18 @@ class MoodCheckOverlay extends StatelessWidget {
                       color: Colors.green,
                       onTap: onGood,
                     ),
-                    
+
                     SizedBox(height: 12.h),
-                    
+
                     _MoodButton(
                       emoji: '😔',
                       label: "Not Great",
                       color: Colors.orange,
                       onTap: onNotGreat,
                     ),
-                    
+
                     SizedBox(height: 12.h),
-                    
+
                     _MoodButton(
                       emoji: '😔',
                       label: "Feeling Bad",
@@ -149,10 +152,10 @@ class _MoodButton extends StatelessWidget {
           width: double.infinity,
           padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 20),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.15),
+            color: color.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(16.r),
             border: Border.all(
-              color: color.withOpacity(0.4),
+              color: color.withValues(alpha: 0.4),
               width: 1.5.w,
             ),
           ),
@@ -169,7 +172,7 @@ class _MoodButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
-                  color: color.withOpacity(0.9),
+                  color: color.withValues(alpha: 0.9),
                 ),
               ),
             ],

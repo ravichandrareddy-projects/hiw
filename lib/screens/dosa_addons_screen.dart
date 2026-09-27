@@ -31,7 +31,7 @@ class _DosaAddonsScreenState extends State<DosaAddonsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Customize Dosa')),
+      appBar: AppBar(title: const Text('Customize Dosa')),
       body: Padding(
         padding: EdgeInsets.all(16.r),
         child: Column(
@@ -42,14 +42,12 @@ class _DosaAddonsScreenState extends State<DosaAddonsScreen> {
               style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 8.h),
-
             Row(
               children: [
                 IconButton(
-                  icon: Icon(Icons.remove_circle_outline),
-                  onPressed: dosaCount > 1
-                      ? () => setState(() => dosaCount--)
-                      : null,
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed:
+                      dosaCount > 1 ? () => setState(() => dosaCount--) : null,
                 ),
                 Text(
                   dosaCount.toString(),
@@ -59,37 +57,32 @@ class _DosaAddonsScreenState extends State<DosaAddonsScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.add_circle_outline),
+                  icon: const Icon(Icons.add_circle_outline),
                   onPressed: () => setState(() => dosaCount++),
                 ),
               ],
             ),
-
             SizedBox(height: 24.h),
-
             Text(
               'Add-ons',
               style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
             ),
-
             SwitchListTile(
-              title: Text('Coconut Chutney'),
+              title: const Text('Coconut Chutney'),
               value: chutney,
               onChanged: (v) => setState(() => chutney = v),
             ),
             SwitchListTile(
-              title: Text('Red Chutney'),
+              title: const Text('Red Chutney'),
               value: redChutney,
               onChanged: (v) => setState(() => redChutney = v),
             ),
             SwitchListTile(
-              title: Text('Sambar'),
+              title: const Text('Sambar'),
               value: sambar,
               onChanged: (v) => setState(() => sambar = v),
             ),
-
-            Spacer(),
-
+            const Spacer(),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -106,7 +99,8 @@ class _DosaAddonsScreenState extends State<DosaAddonsScreen> {
                 },
                 child: Text(
                   'Apply',
-                  style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
+                  style:
+                      TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
                 ),
               ),
             ),

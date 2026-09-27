@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/food_addons_config.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/glass_button.dart';
+import '../themes/hiw_theme.dart';
 
 class GenericAddonsScreen extends StatefulWidget {
   final String foodLabel;
@@ -47,6 +48,7 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ink = HiwTheme.of(context).inkColor;
     return Scaffold(
       appBar: AppBar(
         title: Text('Customize ${widget.foodLabel.toUpperCase()}'),
@@ -57,12 +59,11 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
           children: [
             Expanded(
               child: ListView(
-                children: widget.addons.map(_buildAddon).toList(),
+                children:
+                    widget.addons.map((a) => _buildAddon(a, ink)).toList(),
               ),
             ),
-
             SizedBox(height: 12.h),
-
             GlassButton(
               text: 'Apply',
               icon: Icons.check,
@@ -79,23 +80,23 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
   // -------------------------
   // BUILD EACH ADDON
   // -------------------------
-  Widget _buildAddon(FoodAddon addon) {
+  Widget _buildAddon(FoodAddon addon, Color ink) {
     switch (addon.type) {
       case AddonType.counter:
-        return _counterAddon(addon);
+        return _counterAddon(addon, ink);
       case AddonType.singleChoice:
-        return _singleChoiceAddon(addon);
+        return _singleChoiceAddon(addon, ink);
       case AddonType.multiChoice:
-        return _multiChoiceAddon(addon);
+        return _multiChoiceAddon(addon, ink);
       case AddonType.toggle:
-        return _toggleAddon(addon);
+        return _toggleAddon(addon, ink);
     }
   }
 
   // -------------------------
   // COUNTER
   // -------------------------
-  Widget _counterAddon(FoodAddon addon) {
+  Widget _counterAddon(FoodAddon addon, Color ink) {
     int value = _values[addon.id];
 
     return Padding(
@@ -108,15 +109,14 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
               addon.title,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: ink,
               ),
             ),
             SizedBox(height: 8.h),
-
             Row(
               children: [
                 IconButton(
-                  icon: Icon(Icons.remove_circle_outline),
+                  icon: const Icon(Icons.remove_circle_outline),
                   onPressed: value > addon.min
                       ? () => setState(() => _values[addon.id] = value - 1)
                       : null,
@@ -129,7 +129,7 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.add_circle_outline),
+                  icon: const Icon(Icons.add_circle_outline),
                   onPressed: value < addon.max
                       ? () => setState(() => _values[addon.id] = value + 1)
                       : null,
@@ -145,7 +145,7 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
   // -------------------------
   // SINGLE CHOICE
   // -------------------------
-  Widget _singleChoiceAddon(FoodAddon addon) {
+  Widget _singleChoiceAddon(FoodAddon addon, Color ink) {
     return Padding(
       padding: EdgeInsets.only(bottom: 12.h),
       child: GlassCard(
@@ -156,11 +156,10 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
               addon.title,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: ink,
               ),
             ),
             SizedBox(height: 8.h),
-
             ...addon.options.map((opt) {
               return RadioListTile<String>(
                 value: opt.id,
@@ -168,7 +167,7 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
                 onChanged: (v) => setState(() => _values[addon.id] = v),
                 title: Text(
                   opt.label,
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: ink),
                 ),
               );
             }),
@@ -181,7 +180,7 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
   // -------------------------
   // MULTI CHOICE
   // -------------------------
-  Widget _multiChoiceAddon(FoodAddon addon) {
+  Widget _multiChoiceAddon(FoodAddon addon, Color ink) {
     final Set<String> selected = _values[addon.id];
 
     return Padding(
@@ -194,11 +193,10 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
               addon.title,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: ink,
               ),
             ),
             SizedBox(height: 8.h),
-
             ...addon.options.map((opt) {
               return CheckboxListTile(
                 value: selected.contains(opt.id),
@@ -213,7 +211,7 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
                 },
                 title: Text(
                   opt.label,
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: ink),
                 ),
               );
             }),
@@ -226,14 +224,14 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
   // -------------------------
   // TOGGLE
   // -------------------------
-  Widget _toggleAddon(FoodAddon addon) {
+  Widget _toggleAddon(FoodAddon addon, Color ink) {
     return Padding(
       padding: EdgeInsets.only(bottom: 12.h),
       child: GlassCard(
         child: SwitchListTile(
           title: Text(
             addon.title,
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(color: ink),
           ),
           value: _values[addon.id],
           onChanged: (v) => setState(() => _values[addon.id] = v),

@@ -11,7 +11,7 @@ class NewYearBackground extends StatelessWidget {
       children: [
         // 🎆 NEW YEAR NIGHT-SKY GRADIENT
         Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -34,7 +34,7 @@ class NewYearBackground extends StatelessWidget {
         ),
 
         // 🎇 ANIMATED FIREWORKS ON TOP
-        Positioned.fill(
+        const Positioned.fill(
           child: FireworksAnimation(),
         ),
 

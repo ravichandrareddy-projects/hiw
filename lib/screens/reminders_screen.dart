@@ -71,11 +71,16 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
   int _getId(String key) {
     switch (key) {
-      case 'breakfast': return 101;
-      case 'lunch': return 102;
-      case 'dinner': return 103;
-      case 'snack': return 104;
-      default: return 0;
+      case 'breakfast':
+        return 101;
+      case 'lunch':
+        return 102;
+      case 'dinner':
+        return 103;
+      case 'snack':
+        return 104;
+      default:
+        return 0;
     }
   }
 
@@ -88,7 +93,9 @@ class _RemindersScreenState extends State<RemindersScreen> {
         return Theme(
           data: currentTheme.copyWith(
             colorScheme: currentTheme.colorScheme.copyWith(
-              surface: currentTheme.brightness == Brightness.dark ? const Color(0xFF1E293B) : Colors.white,
+              surface: currentTheme.brightness == Brightness.dark
+                  ? const Color(0xFF1E293B)
+                  : Colors.white,
             ),
           ),
           child: child!,
@@ -128,14 +135,14 @@ class _RemindersScreenState extends State<RemindersScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text('Meal Reminders'),
+        title: const Text('Meal Reminders'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
       ),
       body: SafeArea(
         child: _loading
-            ? Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator())
             : ListView(
                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12.h),
                 children: [
@@ -177,7 +184,9 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       child: Text(
                         'Meal alerts arrive 15 mins before time.\nWater alerts repeat hourly for 16 instances.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 13.sp),
+                        style: TextStyle(
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                            fontSize: 13.sp),
                       ),
                     ),
                   ),
@@ -187,13 +196,16 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       onPressed: () {
                         NotificationService().scheduleTestNotification();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Test scheduled for 10 seconds from now! 🕒')),
+                          const SnackBar(
+                              content: Text(
+                                  'Test scheduled for 10 seconds from now! 🕒')),
                         );
                       },
-                      icon: Icon(Icons.bug_report, size: 16),
-                      label: Text('Test Scheduled Notification (10s)'),
+                      icon: const Icon(Icons.bug_report, size: 16),
+                      label: const Text('Test Scheduled Notification (10s)'),
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.orangeAccent.withOpacity(0.7),
+                        foregroundColor:
+                            Colors.orangeAccent.withValues(alpha: 0.7),
                       ),
                     ),
                   ),
@@ -203,13 +215,15 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const NotificationHelpScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const NotificationHelpScreen()),
                         );
                       },
-                      icon: Icon(Icons.help_outline, size: 16),
-                      label: Text('Notifications Not Working?'),
+                      icon: const Icon(Icons.help_outline, size: 16),
+                      label: const Text('Notifications Not Working?'),
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.redAccent.withOpacity(0.7),
+                        foregroundColor:
+                            Colors.redAccent.withValues(alpha: 0.7),
                       ),
                     ),
                   ),
@@ -252,16 +266,18 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   children: [
                     Text(
                       info,
-                      style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12.sp),
+                      style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                          fontSize: 12.sp),
                     ),
                     SizedBox(width: 8.w),
                     GestureDetector(
                       onTap: () => _pickTime(key),
                       child: Container(
-                        padding: EdgeInsets.symmetric(
+                        padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.tealAccent.withOpacity(0.1),
+                          color: Colors.tealAccent.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6.r),
                         ),
                         child: Text(
@@ -280,7 +296,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
           ),
           Switch(
             value: _enabled[key] ?? false,
-            activeColor: Colors.tealAccent,
+            activeThumbColor: Colors.tealAccent,
             onChanged: (v) => _toggleReminder(key, v),
           ),
         ],

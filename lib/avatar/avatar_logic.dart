@@ -1,12 +1,12 @@
 // lib/avatar/avatar_logic.dart
-import '../core/food_item.dart'; // for MealType enum if needed, or pass int/string
+// for MealType enum if needed, or pass int/string
 
 enum FoodQuality { healthy, junk }
 
 class HealthEnergyDelta {
   final double healthDelta;
   final double energyDelta; // This is TOTAL (Base + Bonus if applicable)
-  final double energyBase;  // Just the base
+  final double energyBase; // Just the base
   final double energyBonus; // Potential bonus (0 if not eligible time-wise)
   final bool junkConsumed;
   final bool isBonusEligible; // True if Dinner or > 8:30 PM
@@ -32,7 +32,7 @@ class AvatarLogic {
     required DateTime currentTime,
   }) {
     double healthDelta = 0;
-    
+
     // -------------------------
     // HEALTH (UNCHANGED)
     // -------------------------
@@ -58,17 +58,18 @@ class AvatarLogic {
     // Rules:
     // - Trigger: Meal is DINNER (index 3) OR Time is > 20:30 (8:30 PM)
     // - Target: 2000 (margin 200)
-    
+
     double calculatedBonus = 0;
-    
+
     // Check if "Dinner" (3) OR Time > 8:30 PM
     final isDinner = mealIndex == 3;
-    final isLate = currentTime.hour > 20 || (currentTime.hour == 20 && currentTime.minute >= 30);
+    final isLate = currentTime.hour > 20 ||
+        (currentTime.hour == 20 && currentTime.minute >= 30);
     final isBonusEligible = isDinner || isLate;
 
     if (isBonusEligible) {
       final diff = (totalDailyCalories - targetCalories).abs();
-      
+
       // GOLD ZONE: +/- 200 (e.g. 1800 - 2200)
       if (diff <= 200) {
         calculatedBonus = 10.0;
@@ -85,7 +86,8 @@ class AvatarLogic {
 
     return HealthEnergyDelta(
       healthDelta: healthDelta,
-      energyDelta: baseEnergy + calculatedBonus, // This might be used for display
+      energyDelta:
+          baseEnergy + calculatedBonus, // This might be used for display
       energyBase: baseEnergy,
       energyBonus: calculatedBonus,
       junkConsumed: mealQuality == FoodQuality.junk,

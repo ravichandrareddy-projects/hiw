@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // 🆕 Hive for chat persistence
 import '../services/gemini_service.dart';
 
-
 import '../services/greeting_detection_service.dart'; // 🆕 AI greeting detection
 import '../widgets/premium_glass_card.dart';
 import '../core/history_store.dart';
@@ -13,6 +12,7 @@ import '../avatar/avatar_store.dart';
 import '../config/ai_config.dart';
 import '../hive/chat_hive_model.dart'; // 🆕 Chat model
 import 'mood_support_screen.dart'; // 🆕 Mood support chatbot
+import '../themes/hiw_theme.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -48,17 +48,17 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   Future<void> _loadChatHistory({String? sessionIdToLoad}) async {
     final box = await Hive.openBox<ChatHive>('chat_history');
     final today = DateTime.now().toIso8601String().split('T')[0];
-    
+
     // Clear old messages from previous days
     final oldKeys = box.keys.where((key) {
-      final chat = box.get(key) as ChatHive?;
+      final chat = box.get(key);
       return chat != null && chat.date != today;
     }).toList();
-    
+
     for (final key in oldKeys) {
       await box.delete(key);
     }
-    
+
     // Load today's messages for the given session (or default to none if new)
     List<ChatHive> todayChats = box.values
         .where((chat) => chat.date == today)
@@ -67,21 +67,23 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
     if (sessionIdToLoad != null) {
       _currentSessionId = sessionIdToLoad;
-      todayChats = todayChats.where((c) => c.sessionId == sessionIdToLoad).toList();
+      todayChats =
+          todayChats.where((c) => c.sessionId == sessionIdToLoad).toList();
     } else {
       // Find the most recent session if none specified
       if (todayChats.isNotEmpty) {
         _currentSessionId = todayChats.last.sessionId;
-        todayChats = todayChats.where((c) => c.sessionId == _currentSessionId).toList();
+        todayChats =
+            todayChats.where((c) => c.sessionId == _currentSessionId).toList();
       } else {
         _currentSessionId = null; // Fresh start
       }
     }
-    
+
     // Load limit for this session
     final prefs = await SharedPreferences.getInstance();
     final left = prefs.getInt('qs_left_$_currentSessionId') ?? 5;
-    
+
     setState(() {
       _questionsLeft = left;
       _messages.clear();
@@ -89,7 +91,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         if (chat.sender == 'user') {
           _messages.add('You: ${chat.text}');
         } else {
-          _messages.add(chat.text); // Already has "Foodity:" or "💙 Support:" prefix
+          _messages
+              .add(chat.text); // Already has "Foodity:" or "💙 Support:" prefix
         }
       }
     });
@@ -99,18 +102,17 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   void _startNewChat() async {
     final prefs = await SharedPreferences.getInstance();
     final available = prefs.getInt('new_chats_available') ?? 1;
-    
+
     if (available <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You can only create 1 extra new chat per day.'))
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('You can only create 1 extra new chat per day.')));
       if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
       return;
     }
-    
+
     // Decrement and save
     await prefs.setInt('new_chats_available', available - 1);
-    
+
     final newSessionId = DateTime.now().millisecondsSinceEpoch.toString();
     await prefs.setInt('qs_left_$newSessionId', 5);
 
@@ -120,7 +122,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       _questionsLeft = 5;
       _newChatsAvailable = available - 1;
     });
-    
+
     if (Scaffold.of(context).isDrawerOpen) {
       Navigator.pop(context);
     }
@@ -130,10 +132,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   Future<void> _saveMessage(String text, String sender) async {
     final box = await Hive.openBox<ChatHive>('chat_history');
     final today = DateTime.now().toIso8601String().split('T')[0];
-    
+
     // Assign a new session ID if this is the first message of a new chat
     _currentSessionId ??= DateTime.now().millisecondsSinceEpoch.toString();
-    
+
     final chat = ChatHive(
       text: text,
       sender: sender,
@@ -141,7 +143,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       date: today,
       sessionId: _currentSessionId!,
     );
-    
+
     await box.add(chat);
   }
 
@@ -153,12 +155,12 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     if (lastDate != today) {
       await prefs.setString('last_chat_date', today);
       await prefs.setInt('new_chats_available', 1);
-      
+
       // 🆕 Clear chat history on new day (midnight reset)
       _messages.clear();
       final box = await Hive.openBox<ChatHive>('chat_history');
       await box.clear(); // Delete all old messages
-      
+
       _currentSessionId = DateTime.now().millisecondsSinceEpoch.toString();
       await prefs.setInt('qs_left_$_currentSessionId', 5);
 
@@ -170,7 +172,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       }
     } else {
       final available = prefs.getInt('new_chats_available') ?? 1;
-      
+
       if (mounted) {
         setState(() {
           _newChatsAvailable = available;
@@ -188,7 +190,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     await prefs.setInt('qs_left_$_currentSessionId', _questionsLeft);
   }
 
-
   Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _loading) return;
@@ -205,18 +206,22 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         store.seedStreak(10);
         setState(() {
           _loading = false;
-          devReply = "Foodity: 🪄 Streak Hack Activated! 100% Hacker mode. Check your History screen! 🔥";
+          devReply =
+              "Foodity: 🪄 Streak Hack Activated! 100% Hacker mode. Check your History screen! 🔥";
         });
       } else if (text == '/max' || text == '/mid' || text == '/min') {
         if (text == '/max') {
           avatarStore.hackStats(h: 100, e: 100, s: 100);
-          devReply = "Foodity: 🚀 STATS MAXED! Avatar is at 100% peak performance! 💪";
+          devReply =
+              "Foodity: 🚀 STATS MAXED! Avatar is at 100% peak performance! 💪";
         } else if (text == '/mid') {
           avatarStore.hackStats(h: 50, e: 50, s: 50);
-          devReply = "Foodity: ⚖️ STATS BALANCED! Avatar is at 50% across the board.";
+          devReply =
+              "Foodity: ⚖️ STATS BALANCED! Avatar is at 50% across the board.";
         } else if (text == '/min') {
           avatarStore.hackStats(h: 0, e: 0, s: 0);
-          devReply = "Foodity: 💀 STATS MINIMIZED! Avatar is at 0%. Emergency! 🚨";
+          devReply =
+              "Foodity: 💀 STATS MINIMIZED! Avatar is at 0%. Emergency! 🚨";
         }
       } else if (text == '/reset' || text == '/reste') {
         final prefs = await SharedPreferences.getInstance();
@@ -226,46 +231,49 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           _messages.clear();
           _questionsLeft = 5;
           _newChatsAvailable = 1;
-          devReply = "Foodity: 🔄 System Reset. Memory cleared. Energy restored.";
+          devReply =
+              "Foodity: 🔄 System Reset. Memory cleared. Energy restored.";
         });
       } else if (text.startsWith('/remove_chat ')) {
-        final chatNameToRemove = text.substring('/remove_chat '.length).trim().toLowerCase();
-        
+        final chatNameToRemove =
+            text.substring('/remove_chat '.length).trim().toLowerCase();
+
         final box = await Hive.openBox<ChatHive>('chat_history');
-        
+
         // Find all sessions
         final Map<String, List<ChatHive>> sessions = {};
         for (final chat in box.values) {
           sessions.putIfAbsent(chat.sessionId, () => []).add(chat);
         }
-        
+
         String? targetSessionId;
         for (final entry in sessions.entries) {
-          final firstUserMsg = entry.value.firstWhere(
-            (c) => c.sender == 'user', 
-            orElse: () => entry.value.first
-          ).text;
-          
-          final titleStr = firstUserMsg.length > 25 
-              ? '${firstUserMsg.substring(0, 25)}...' 
+          final firstUserMsg = entry.value
+              .firstWhere((c) => c.sender == 'user',
+                  orElse: () => entry.value.first)
+              .text;
+
+          final titleStr = firstUserMsg.length > 25
+              ? '${firstUserMsg.substring(0, 25)}...'
               : firstUserMsg;
-              
-          if (titleStr.toLowerCase() == chatNameToRemove || firstUserMsg.toLowerCase() == chatNameToRemove) {
+
+          if (titleStr.toLowerCase() == chatNameToRemove ||
+              firstUserMsg.toLowerCase() == chatNameToRemove) {
             targetSessionId = entry.key;
             break;
           }
         }
-        
+
         if (targetSessionId != null) {
           final keysToDelete = box.keys.where((key) {
-            final chat = box.get(key) as ChatHive?;
+            final chat = box.get(key);
             return chat != null && chat.sessionId == targetSessionId;
           }).toList();
-          
+
           for (final key in keysToDelete) {
             await box.delete(key);
           }
-          
+
           if (_currentSessionId == targetSessionId) {
             setState(() {
               _messages.clear();
@@ -274,7 +282,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           }
           devReply = "Foodity: 🗑️ Chat removed successfully.";
         } else {
-          devReply = "Foodity: ❌ Could not find chat matching '$chatNameToRemove'. Please try the exact name from the sidebar.";
+          devReply =
+              "Foodity: ❌ Could not find chat matching '$chatNameToRemove'. Please try the exact name from the sidebar.";
         }
       } else if (text == '/clean') {
         final prefs = await SharedPreferences.getInstance();
@@ -292,13 +301,14 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         // 🆕 ABSOLUTE STAT COMMANDS (e.g., /50H, /10E, /5S)
         final regExp = RegExp(r'^\/(\d+)([HES])$', caseSensitive: false);
         final match = regExp.firstMatch(text);
-        
+
         if (match != null) {
           final value = double.tryParse(match.group(1)!) ?? 0;
           final stat = match.group(2)!.toUpperCase();
           avatarStore.setStat(stat, value);
-          
-          String statName = stat == 'H' ? 'Health' : (stat == 'E' ? 'Energy' : 'Stamina');
+
+          String statName =
+              stat == 'H' ? 'Health' : (stat == 'E' ? 'Energy' : 'Stamina');
           devReply = "Foodity: 🛠️ $statName set to $value%!";
         }
       }
@@ -310,10 +320,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       }
     }
 
-    // ⛔ LIMIT CHECK 
+    // ⛔ LIMIT CHECK
     if (_questionsLeft <= 0) {
       setState(() {
-        _messages.add("Foodity: 🪫 Your session energy is depleted (0/5). Return tomorrow, or tap 'New Chat' heavily at top left to start another session! ($_newChatsAvailable available)");
+        _messages.add(
+            "Foodity: 🪫 Your session energy is depleted (0/5). Return tomorrow, or tap 'New Chat' heavily at top left to start another session! ($_newChatsAvailable available)");
       });
       _controller.clear();
       return;
@@ -324,14 +335,14 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       _loading = true;
       _controller.clear();
     });
-    
+
     // 🆕 Save user message to Hive
     await _saveMessage(text, 'user');
 
     // 🆕 Auto-trigger Mood Support if user mentions feeling bad
     final lowerText = text.toLowerCase();
-    if (lowerText.contains("feeling bad") || 
-        lowerText.contains("stressed") || 
+    if (lowerText.contains("feeling bad") ||
+        lowerText.contains("stressed") ||
         lowerText.contains("not good") ||
         lowerText.contains("im bad") ||
         lowerText.contains("unhappy")) {
@@ -348,7 +359,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
 
     // ⚡ 1. ZERO-CREDIT OFFLINE GREETING CHECK
-    final offlineGreeting = GreetingDetectionService.getOfflineGreetingReply(text);
+    final offlineGreeting =
+        GreetingDetectionService.getOfflineGreetingReply(text);
 
     if (offlineGreeting != null) {
       if (mounted) {
@@ -368,24 +380,25 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
     if (mounted) {
       final botMessage = "Foodity: $reply";
-      
+
       setState(() {
         _messages.add(botMessage);
         _loading = false;
       });
-      
+
       await _saveMessage(botMessage, 'bot');
       await _decreaseLimit();
     }
-
   }
-
-
 
   // 🆕 Drawer UI Logic
   Widget _buildSidebarDrawer() {
+    final t = HiwTheme.of(context);
+    final accent = Theme.of(context).primaryColor;
     return Drawer(
-      backgroundColor: Colors.black.withOpacity(0.9), // Dark glass feel
+      backgroundColor: t.isMinimal
+          ? Colors.white
+          : Colors.black.withValues(alpha: 0.9), // Dark glass feel
       child: SafeArea(
         child: Column(
           children: [
@@ -393,28 +406,35 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               padding: EdgeInsets.all(16.r),
               child: ElevatedButton.icon(
                 onPressed: _startNewChat,
-                icon: Icon(Icons.add, color: Colors.tealAccent),
-                label: Text("New Chat", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                icon: Icon(Icons.add, color: accent),
+                label: Text("New Chat",
+                    style: TextStyle(
+                        color: t.inkColor, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.tealAccent.withOpacity(0.2),
+                  backgroundColor: accent.withValues(alpha: 0.15),
                   minimumSize: Size(double.infinity, 50.h),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12.r),
-                    side: BorderSide(color: Colors.tealAccent.withOpacity(0.5)),
+                    side: BorderSide(
+                        color: accent.withValues(alpha: 0.5)),
                   ),
                 ),
               ),
             ),
-            Divider(color: Colors.white24),
+            Divider(color: t.isMinimal ? t.cardStroke : Colors.white24),
             Expanded(
               child: FutureBuilder<Box<ChatHive>>(
                 future: Hive.openBox<ChatHive>('chat_history'),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) return Center(child: CircularProgressIndicator(color: Colors.tealAccent));
-                  
+                  if (!snapshot.hasData) {
+                    return Center(
+                        child: CircularProgressIndicator(
+                            color: accent));
+                  }
+
                   final box = snapshot.data!;
                   final today = DateTime.now().toIso8601String().split('T')[0];
-                  
+
                   // Group by sessionId
                   final Map<String, List<ChatHive>> sessions = {};
                   for (final chat in box.values.where((c) => c.date == today)) {
@@ -422,7 +442,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                   }
 
                   if (sessions.isEmpty) {
-                    return Center(child: Text("No previous chats today.", style: TextStyle(color: Colors.white54)));
+                    return Center(
+                        child: Text("No previous chats today.",
+                            style: TextStyle(color: t.mutedColor)));
                   }
 
                   // Sort sessions by the timestamp of their first message (newest first)
@@ -438,26 +460,32 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                     itemBuilder: (context, index) {
                       final sessionId = sortedSessionIds[index];
                       final sessionChats = sessions[sessionId]!;
-                      
+
                       // Get the first user message as the title, or a default
-                      final firstUserMsg = sessionChats.firstWhere(
-                        (c) => c.sender == 'user', 
-                        orElse: () => sessionChats.first
-                      ).text;
-                      
-                      final title = firstUserMsg.length > 25 
-                          ? '${firstUserMsg.substring(0, 25)}...' 
+                      final firstUserMsg = sessionChats
+                          .firstWhere((c) => c.sender == 'user',
+                              orElse: () => sessionChats.first)
+                          .text;
+
+                      final title = firstUserMsg.length > 25
+                          ? '${firstUserMsg.substring(0, 25)}...'
                           : firstUserMsg;
 
                       final isSelected = _currentSessionId == sessionId;
 
                       return ListTile(
-                        leading: Icon(Icons.chat_bubble_outline, color: isSelected ? Colors.tealAccent : Colors.white54),
+                        leading: Icon(Icons.chat_bubble_outline,
+                            color: isSelected
+                                ? accent
+                                : t.mutedColor),
                         title: Text(
-                          title, 
+                          title,
                           style: TextStyle(
-                            color: isSelected ? Colors.tealAccent : Colors.white,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color:
+                                isSelected ? accent : t.inkColor,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -483,116 +511,135 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final t = HiwTheme.of(context);
+    final accent = Theme.of(context).primaryColor;
 
     // 🆕 Scaffold wrap needed to support the Drawer
     return Scaffold(
       backgroundColor: Colors.transparent, // Inherit outer gradient if any
       drawer: _buildSidebarDrawer(),
       body: Column(
-      children: [
-        // 🔹 Header
-        Padding(
-          padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Column( // Changed to Column to hold the new header Row and Divider
-            children: [
-              // Header with Logo
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8.h), // Adjusted padding to fit the original outer padding
-                child: Row(
-                  children: [
-                    // 🆕 Menu button to open sidebar
-                    Builder(
-                      builder: (ctx) => IconButton(
-                        icon: Icon(Icons.menu, color: Colors.white, size: 28),
-                        onPressed: () => Scaffold.of(ctx).openDrawer(),
-                      ),
-                    ),
-                    SizedBox(width: 4.w),
-                    // 🆕 Foodity AI Logo
-                    Container(
-                      padding: EdgeInsets.all(8.r),
-                      decoration: BoxDecoration(
-                        color: Colors.tealAccent.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12.r),
-                        border: Border.all(color: Colors.tealAccent.withOpacity(0.2)),
-                      ),
-                      child: Icon(
-                        Icons.restaurant_menu, // Restaurant menu icon for Foodity
-                        color: Colors.tealAccent,
-                        size: 24,
-                      ),
-                    ),
-                    SizedBox(width: 12.w),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Foodity AI',
-                          style: TextStyle(
-                            fontSize: 20.sp,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1.2,
-                          ),
+        children: [
+          // 🔹 Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Column(
+              // Changed to Column to hold the new header Row and Divider
+              children: [
+                // Header with Logo
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 0,
+                      vertical: 8
+                          .h), // Adjusted padding to fit the original outer padding
+                  child: Row(
+                    children: [
+                      // 🆕 Menu button to open sidebar
+                      Builder(
+                        builder: (ctx) => IconButton(
+                          icon: Icon(Icons.menu,
+                              color: t.inkColor, size: 28),
+                          onPressed: () => Scaffold.of(ctx).openDrawer(),
                         ),
-                        Text(
-                          'Health Expert',
-                          style: TextStyle(
-                            fontSize: 10.sp,
-                            color: Colors.tealAccent.withOpacity(0.7),
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 1,
-                          ),
+                      ),
+                      SizedBox(width: 4.w),
+                      // 🆕 Foodity AI Logo
+                      Container(
+                        padding: EdgeInsets.all(8.r),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12.r),
+                          border: Border.all(
+                              color: accent.withValues(alpha: 0.2)),
                         ),
-                      ],
-                    ),
-                    Spacer(),
-                    // Question counter
-                    PremiumGlassCard(
-                      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-                      borderRadius: 12,
-                      isInnerPill: true,
-                      child: Row(
+                        child: Icon(
+                          Icons
+                              .restaurant_menu, // Restaurant menu icon for Foodity
+                          color: accent,
+                          size: 24,
+                        ),
+                      ),
+                      SizedBox(width: 12.w),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.bolt, color: Colors.tealAccent, size: 14),
-                          SizedBox(width: 4.w),
                           Text(
-                            '$_questionsLeft/5 Qs | $_newChatsAvailable New Chats',
+                            'Foodity AI',
                             style: TextStyle(
-                              color: Colors.tealAccent,
+                              fontSize: 20.sp,
                               fontWeight: FontWeight.bold,
+                              color: t.inkColor,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          Text(
+                            'Health Expert',
+                            style: TextStyle(
                               fontSize: 10.sp,
+                              color: accent.withValues(alpha: 0.8),
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 1,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                      const Spacer(),
+                      // Question counter
+                      PremiumGlassCard(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 10.w, vertical: 6.h),
+                        borderRadius: 12,
+                        isInnerPill: true,
+                        child: Row(
+                          children: [
+                            Icon(Icons.bolt,
+                                color: accent, size: 14),
+                            SizedBox(width: 4.w),
+                            Text(
+                              '$_questionsLeft/5 Qs | $_newChatsAvailable New Chats',
+                              style: TextStyle(
+                                color: accent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10.sp,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              
-              Divider(color: Colors.white10),
-            ],
-          ),
-        ),
 
-        // 🔹 Messages
-        Expanded(
-          child: _messages.isEmpty
-              ? Center(child: Text("Greetings! I am Foodity. How can I assist you today?", style: TextStyle(color: Colors.white54)))
-              : ListView.builder(
-                  padding: EdgeInsets.all(16.r),
-                  itemCount: _messages.length,
-                  itemBuilder: (context, i) {
-                    final msg = _messages[i];
-                    final isUser = msg.startsWith("You:");
+                Divider(
+                    color: t.isMinimal ? t.cardStroke : Colors.white10),
+              ],
+            ),
+          ),
+
+          // 🔹 Messages
+          Expanded(
+            child: _messages.isEmpty
+                ? Center(
+                    child: Text(
+                        "Greetings! I am Foodity. How can I assist you today?",
+                        style: TextStyle(color: t.mutedColor)))
+                : ListView.builder(
+                    padding: EdgeInsets.all(16.r),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, i) {
+                      final msg = _messages[i];
+                      final isUser = msg.startsWith("You:");
                       return Padding(
-                        padding: EdgeInsets.only(bottom: 12.h), // 🆕 Spacing between bubbles
+                        padding: EdgeInsets.only(
+                            bottom: 12.h), // 🆕 Spacing between bubbles
                         child: Align(
-                          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                          alignment: isUser
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
                           child: ConstrainedBox(
                             constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.75,
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75,
                             ),
                             child: PremiumGlassCard(
                               padding: EdgeInsets.all(12.r),
@@ -601,69 +648,69 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                               child: Text(
                                 msg,
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: isUser ? FontWeight.w500 : FontWeight.normal,
+                                  color: t.inkColor,
+                                  fontWeight: isUser
+                                      ? FontWeight.w500
+                                      : FontWeight.normal,
                                 ),
                               ),
                             ),
                           ),
                         ),
                       );
-                  },
-                ),
-        ),
-
-        // 🔹 Loader
-        if (_loading)
-          Padding(
-            padding: EdgeInsets.all(8.r),
-            child: CircularProgressIndicator(color: Colors.tealAccent),
+                    },
+                  ),
           ),
 
-        // 🔹 Input
-        Padding(
-          padding: EdgeInsets.fromLTRB(16, 6, 16, 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: PremiumGlassCard(
-                  borderRadius: 25,
-                  padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  isInnerPill: true,
-                  child: TextField(
-                    controller: _controller,
-                    style: TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Message Foodity...',
-                      hintStyle: TextStyle(color: Colors.white54),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 12.h),
+          // 🔹 Loader
+          if (_loading)
+            Padding(
+              padding: EdgeInsets.all(8.r),
+              child: CircularProgressIndicator(color: accent),
+            ),
+
+          // 🔹 Input
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: PremiumGlassCard(
+                    borderRadius: 25,
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    isInnerPill: true,
+                    child: TextField(
+                      controller: _controller,
+                      style: TextStyle(color: t.inkColor),
+                      decoration: InputDecoration(
+                        hintText: 'Message Foodity...',
+                        hintStyle: TextStyle(color: t.mutedColor),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(vertical: 12.h),
+                      ),
+                      onSubmitted: (_) => _send(),
                     ),
-                    onSubmitted: (_) => _send(),
                   ),
                 ),
-              ),
-              SizedBox(width: 12.w),
-              
-              PremiumGlassCard(
-                borderRadius: 50,
-                width: 50.w,
-                height: 50.h,
-                padding: EdgeInsets.zero,
-                child: IconButton(
-                  onPressed: _send,
-                  icon: Icon(Icons.send_rounded, color: Colors.tealAccent),
+                SizedBox(width: 12.w),
+                PremiumGlassCard(
+                  borderRadius: 50,
+                  width: 50.w,
+                  height: 50.h,
+                  padding: EdgeInsets.zero,
+                  child: IconButton(
+                    onPressed: _send,
+                    icon: Icon(Icons.send_rounded,
+                        color: accent),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        
-        
-        SizedBox(height: 70.h), 
-      ],
-    ),
+
+          SizedBox(height: 70.h),
+        ],
+      ),
     );
   }
 }
-

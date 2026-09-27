@@ -11,7 +11,7 @@ class NotificationHelpScreen extends StatelessWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text('Fix Notifications'),
+        title: const Text('Fix Notifications'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -25,7 +25,6 @@ class NotificationHelpScreen extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 20.h),
-            
             GlassCard(
               padding: EdgeInsets.all(16.r),
               child: Column(
@@ -33,12 +32,14 @@ class NotificationHelpScreen extends StatelessWidget {
                 children: [
                   Text(
                     'For MIUI/Xiaomi Devices (Redmi, Mi)',
-                    style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
+                    style:
+                        TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 12.h),
                   _buildStep('1', 'Go to Settings → Apps → Manage Apps'),
                   _buildStep('2', 'Find and tap "HIW"'),
-                  _buildStep('3', 'Tap "Battery saver" → Select "No restrictions"'),
+                  _buildStep(
+                      '3', 'Tap "Battery saver" → Select "No restrictions"'),
                   _buildStep('4', 'Go back → Tap "Autostart" → Enable it'),
                   _buildStep('5', 'Go back → Tap "Notifications" → Enable all'),
                   SizedBox(height: 12.h),
@@ -46,19 +47,17 @@ class NotificationHelpScreen extends StatelessWidget {
                     onPressed: () async {
                       await openAppSettings();
                     },
-                    icon: Icon(Icons.settings),
-                    label: Text('Open App Settings'),
+                    icon: const Icon(Icons.settings),
+                    label: const Text('Open App Settings'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.tealAccent,
+                      backgroundColor: Theme.of(context).primaryColor,
                       foregroundColor: Colors.black,
                     ),
                   ),
                 ],
               ),
             ),
-            
             SizedBox(height: 20.h),
-            
             GlassCard(
               padding: EdgeInsets.all(16.r),
               child: Column(
@@ -66,7 +65,8 @@ class NotificationHelpScreen extends StatelessWidget {
                 children: [
                   Text(
                     'For Other Android Devices',
-                    style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
+                    style:
+                        TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 12.h),
                   _buildStep('1', 'Go to Settings → Apps → HIW'),
@@ -76,9 +76,7 @@ class NotificationHelpScreen extends StatelessWidget {
                 ],
               ),
             ),
-            
             SizedBox(height: 20.h),
-            
             Text(
               '💡 After making these changes, restart the app and try the test notification again!',
               style: TextStyle(fontSize: 14.sp, fontStyle: FontStyle.italic),
@@ -89,7 +87,7 @@ class NotificationHelpScreen extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildStep(String number, String text) {
     return Padding(
       padding: EdgeInsets.only(bottom: 8.h),
@@ -100,7 +98,7 @@ class NotificationHelpScreen extends StatelessWidget {
             width: 24.w,
             height: 24.h,
             decoration: BoxDecoration(
-              color: Colors.tealAccent.withOpacity(0.2),
+              color: Colors.tealAccent.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,

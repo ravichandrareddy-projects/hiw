@@ -1,7 +1,7 @@
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../core/theme_manager.dart';
+import '../themes/hiw_theme.dart';
 
 class BottomNav extends StatelessWidget {
   final int currentIndex;
@@ -12,7 +12,7 @@ class BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeColor = Theme.of(context).primaryColor;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tm = ThemeManager();
+    final t = HiwTheme.of(context);
 
     return ClipRRect(
       borderRadius: BorderRadius.only(
@@ -20,25 +20,32 @@ class BottomNav extends StatelessWidget {
         topRight: Radius.circular(18.r),
       ),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        filter: ImageFilter.blur(
+            sigmaX: t.isMinimal ? 0 : 18, sigmaY: t.isMinimal ? 0 : 18),
         child: Container(
           decoration: BoxDecoration(
-            color: tm.currentThemeName == 'plain'
-                ? Colors.white.withOpacity(0.9)
-                : (isDark ? Colors.black.withOpacity(0.4) : Colors.white.withOpacity(0.25)),
+            color: t.isMinimal
+                ? Colors.white.withValues(alpha: 0.94)
+                : (isDark
+                    ? Colors.black.withValues(alpha: 0.4)
+                    : Colors.white.withValues(alpha: 0.25)),
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(18.r),
               topRight: Radius.circular(18.r),
             ),
             border: Border.all(
-              color: tm.currentThemeName == 'plain'
-                  ? const Color(0xFFE5E7EB)
-                  : (isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04)),
+              color: t.isMinimal
+                  ? t.cardStroke
+                  : (isDark
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.04)),
               width: 0.5.w,
             ),
           ),
-          padding: EdgeInsets.only(top: 4.h, bottom: 4.h), // 📏 ULTRA COMPACT (Reduced from 6)
-          child: SafeArea( // Ensure it respects Safe Area
+          padding: EdgeInsets.only(
+              top: 4.h, bottom: 4.h), // 📏 ULTRA COMPACT (Reduced from 6)
+          child: SafeArea(
+            // Ensure it respects Safe Area
             top: false,
             bottom: true,
             child: Row(
@@ -50,17 +57,32 @@ class BottomNav extends StatelessWidget {
                   onTap: () => onTap(i),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 220),
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6.h), // Smaller padding
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6.h), // Smaller padding
                     decoration: BoxDecoration(
-                      color: active ? themeColor.withOpacity(0.12) : Colors.transparent,
+                      color: active
+                          ? themeColor.withValues(alpha: 0.12)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(16.r),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(item.icon, color: active ? themeColor : (isDark ? Colors.white60 : Colors.black45), size: 20), // Smaller Icon
+                        Icon(item.icon,
+                            color: active
+                                ? themeColor
+                                : t.mutedColor,
+                            size: 20), // Smaller Icon
                         SizedBox(height: 2.h),
-                        Text(item.label, style: TextStyle(fontSize: 9.sp, fontWeight: active ? FontWeight.bold : FontWeight.normal, color: active ? themeColor : (isDark ? Colors.white38 : Colors.black38))), // Smaller Text
+                        Text(item.label,
+                            style: TextStyle(
+                                fontSize: 9.sp,
+                                fontWeight: active
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: active
+                                    ? themeColor
+                                    : t.mutedColor)), // Smaller Text
                       ],
                     ),
                   ),

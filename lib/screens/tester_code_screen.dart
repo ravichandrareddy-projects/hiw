@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../core/app_state.dart';
 import '../services/user_api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../themes/hiw_theme.dart';
 
 class TesterCodeScreen extends StatefulWidget {
   final VoidCallback onVerified;
@@ -59,7 +60,9 @@ class _TesterCodeScreenState extends State<TesterCodeScreen> {
 
     try {
       // 1. Local validity check
-      if (!_validCodes.contains(code) && !code.startsWith("DEV-") && code != "HIW-DEV") {
+      if (!_validCodes.contains(code) &&
+          !code.startsWith("DEV-") &&
+          code != "HIW-DEV") {
         throw Exception("Invalid tester code. Access Denied.");
       }
 
@@ -84,7 +87,8 @@ class _TesterCodeScreenState extends State<TesterCodeScreen> {
           rethrow;
         }
         // If network issue/timeout/server offline, allow local pass since code is in _validCodes
-        debugPrint("Backend verify unreachable ($backendError). Proceeding with local verification.");
+        debugPrint(
+            "Backend verify unreachable ($backendError). Proceeding with local verification.");
       }
 
       await AppState.setTesterVerified(true);
@@ -100,22 +104,26 @@ class _TesterCodeScreenState extends State<TesterCodeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = HiwTheme.of(context);
+    final fieldBorder =
+        t.isMinimal ? t.cardStroke : Colors.white.withValues(alpha: 0.2);
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E21),
+      backgroundColor: t.isMinimal ? null : const Color(0xFF0A0E21),
       body: Center(
         child: Padding(
           padding: EdgeInsets.all(32.0.r),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock_person_rounded, size: 80, color: Colors.blueAccent),
+              const Icon(Icons.lock_person_rounded,
+                  size: 80, color: Colors.blueAccent),
               SizedBox(height: 24.h),
               Text(
                 'TESTER ACCESS',
                 style: TextStyle(
                   fontSize: 24.sp,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: t.inkColor,
                   letterSpacing: 2,
                 ),
               ),
@@ -123,7 +131,7 @@ class _TesterCodeScreenState extends State<TesterCodeScreen> {
               Text(
                 'Please enter your unique tester code to proceed.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70),
+                style: TextStyle(color: t.mutedColor),
               ),
               SizedBox(height: 40.h),
               if (_isLoading)
@@ -134,33 +142,35 @@ class _TesterCodeScreenState extends State<TesterCodeScreen> {
                     Text(
                       'Waking up backend server...\nThis may take 30-60 seconds on first run.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white54, fontSize: 12.sp),
+                      style: TextStyle(color: t.mutedColor, fontSize: 12.sp),
                     ),
                   ],
                 )
               else ...[
                 TextField(
                   controller: _controller,
-                  style: TextStyle(color: Colors.white, fontSize: 18.sp),
+                  style: TextStyle(color: t.inkColor, fontSize: 18.sp),
                   decoration: InputDecoration(
                     hintText: 'Enter Code (e.g. HIW-XXXXX)',
-                    hintStyle: TextStyle(color: Colors.white38),
+                    hintStyle: TextStyle(color: t.mutedColor),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.05),
+                    fillColor: t.isMinimal
+                        ? Colors.black.withValues(alpha: 0.04)
+                        : Colors.white.withValues(alpha: 0.05),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12.r),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      borderSide: BorderSide(color: fieldBorder),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12.r),
-                      borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+                      borderSide: BorderSide(color: fieldBorder),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12.r),
-                      borderSide: BorderSide(color: Colors.blueAccent),
+                      borderSide: const BorderSide(color: Colors.blueAccent),
                     ),
                     errorText: _error,
-                    errorStyle: TextStyle(color: Colors.redAccent),
+                    errorStyle: const TextStyle(color: Colors.redAccent),
                   ),
                   onSubmitted: (_) => _verify(),
                 ),

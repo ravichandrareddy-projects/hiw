@@ -57,7 +57,8 @@ class _Kite {
   double rotationSpeed;
   double scale;
 
-  _Kite(this.x, this.y, this.size, this.speedX, this.speedY, this.color, this.angle, this.rotationSpeed, this.scale);
+  _Kite(this.x, this.y, this.size, this.speedX, this.speedY, this.color,
+      this.angle, this.rotationSpeed, this.scale);
 
   factory _Kite.random(Random rnd) {
     return _Kite(
@@ -66,7 +67,8 @@ class _Kite {
       rnd.nextDouble() * 25 + 25,
       (rnd.nextDouble() - 0.5) * 0.0015,
       rnd.nextDouble() * 0.001 + 0.0008,
-      Colors.primaries[rnd.nextInt(Colors.primaries.length)].withOpacity(0.8),
+      Colors.primaries[rnd.nextInt(Colors.primaries.length)]
+          .withValues(alpha: 0.8),
       rnd.nextDouble() * pi / 4 - pi / 8,
       (rnd.nextDouble() - 0.5) * 0.02,
       rnd.nextDouble() * 0.5 + 0.5, // Depth variation
@@ -96,7 +98,7 @@ class _KitePainter extends CustomPainter {
     for (final k in kites) {
       final pos = Offset(k.x * size.width, k.y * size.height);
       final kiteSize = k.size * k.scale;
-      
+
       canvas.save();
       canvas.translate(pos.dx, pos.dy);
       canvas.rotate(k.angle);
@@ -116,13 +118,14 @@ class _KitePainter extends CustomPainter {
 
       // 📐 STRUCTURE LINES (CROSS BARS)
       final structurePaint = Paint()
-        ..color = Colors.white.withOpacity(0.3)
+        ..color = Colors.white.withValues(alpha: 0.3)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5;
 
       // Vertical Bar
-      canvas.drawLine(Offset(0, -kiteSize), Offset(0, kiteSize), structurePaint);
-      
+      canvas.drawLine(
+          Offset(0, -kiteSize), Offset(0, kiteSize), structurePaint);
+
       // Curved Horizontal Bar
       final curvePath = Path()
         ..moveTo(-kiteSize * 0.9, 0)
@@ -131,9 +134,9 @@ class _KitePainter extends CustomPainter {
 
       // 📐 BOTTOM TRIANGLE (TAIL FIN)
       final finPaint = Paint()
-        ..color = k.color.withOpacity(0.9)
+        ..color = k.color.withValues(alpha: 0.9)
         ..style = PaintingStyle.fill;
-      
+
       final finPath = Path()
         ..moveTo(0, kiteSize)
         ..lineTo(kiteSize * 0.25, kiteSize + kiteSize * 0.25)
@@ -143,15 +146,12 @@ class _KitePainter extends CustomPainter {
 
       // 🧵 TRAILING THREAD
       final threadPaint = Paint()
-        ..color = Colors.white.withOpacity(0.15)
+        ..color = Colors.white.withValues(alpha: 0.15)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1;
-      
-      canvas.drawLine(
-        Offset(0, kiteSize + kiteSize * 0.25),
-        Offset(sin(k.angle) * 40, kiteSize * 3),
-        threadPaint
-      );
+
+      canvas.drawLine(Offset(0, kiteSize + kiteSize * 0.25),
+          Offset(sin(k.angle) * 40, kiteSize * 3), threadPaint);
 
       canvas.restore();
     }
@@ -160,4 +160,3 @@ class _KitePainter extends CustomPainter {
   @override
   bool shouldRepaint(_) => true;
 }
-

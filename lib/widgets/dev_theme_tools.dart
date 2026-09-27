@@ -18,7 +18,8 @@ class _DevThemeToolsState extends State<DevThemeTools> {
     return Container(
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B), // Dark slate background for tool feeling
+        color:
+            const Color(0xFF1E293B), // Dark slate background for tool feeling
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10.r)],
       ),
@@ -31,10 +32,13 @@ class _DevThemeToolsState extends State<DevThemeTools> {
             children: [
               Text(
                 "🎨 Theme Customizer",
-                style: TextStyle(color: Colors.white, fontSize: 18.sp, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.bold),
               ),
               IconButton(
-                icon: Icon(Icons.refresh, color: Colors.orangeAccent),
+                icon: const Icon(Icons.refresh, color: Colors.orangeAccent),
                 tooltip: "Reset to Default",
                 onPressed: () {
                   _themeManager.reset();
@@ -54,30 +58,29 @@ class _DevThemeToolsState extends State<DevThemeTools> {
               return Column(
                 children: [
                   _buildColorRow(
-                    context, 
-                    "Background Color", 
-                    _themeManager.backgroundColorOverride ?? Colors.transparent, 
-                    (c) => _themeManager.setBackgroundColor(c)
-                  ),
-                  Divider(color: Colors.white10),
+                      context,
+                      "Background Color",
+                      _themeManager.backgroundColorOverride ??
+                          Colors.transparent,
+                      (c) => _themeManager.setBackgroundColor(c)),
+                  const Divider(color: Colors.white10),
                   _buildColorRow(
-                    context, 
-                    "Glass Card Color", 
-                    _themeManager.cardColorOverride ?? Colors.white.withOpacity(0.1), 
-                    (c) => _themeManager.setCardColor(c)
-                  ),
-                  Divider(color: Colors.white10),
+                      context,
+                      "Glass Card Color",
+                      _themeManager.cardColorOverride ??
+                          Colors.white.withValues(alpha: 0.1),
+                      (c) => _themeManager.setCardColor(c)),
+                  const Divider(color: Colors.white10),
                   _buildColorRow(
-                    context, 
-                    "Primary / Nav Color", 
-                    _themeManager.primaryColorOverride ?? Colors.blueAccent, 
-                    (c) => _themeManager.setPrimaryColor(c)
-                  ),
+                      context,
+                      "Primary / Nav Color",
+                      _themeManager.primaryColorOverride ?? Colors.blueAccent,
+                      (c) => _themeManager.setPrimaryColor(c)),
                 ],
               );
             },
           ),
-          
+
           SizedBox(height: 20.h),
 
           // ---------------------------
@@ -86,12 +89,14 @@ class _DevThemeToolsState extends State<DevThemeTools> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Glass Opacity", style: TextStyle(color: Colors.white70)),
-               ListenableBuilder(
+              const Text("Glass Opacity",
+                  style: TextStyle(color: Colors.white70)),
+              ListenableBuilder(
                 listenable: _themeManager,
                 builder: (context, _) => Text(
                   "${(_themeManager.opacityOverride * 100).toInt()}%",
-                  style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.blueAccent, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -115,26 +120,33 @@ class _DevThemeToolsState extends State<DevThemeTools> {
     );
   }
 
-  Widget _buildColorRow(BuildContext context, String title, Color currentColor, Function(Color) onColorChanged) {
+  Widget _buildColorRow(BuildContext context, String title, Color currentColor,
+      Function(Color) onColorChanged) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+              Text(title,
+                  style: const TextStyle(
+                      color: Colors.white70, fontWeight: FontWeight.w600)),
               SizedBox(height: 4.h),
               // Hex Code Display
               Text(
                 '#${_colorToHex(currentColor)}',
-                style: TextStyle(color: Colors.white38, fontSize: 12.sp, fontFamily: 'monospace'),
+                style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 12.sp,
+                    fontFamily: 'monospace'),
               ),
             ],
           ),
           GestureDetector(
-            onTap: () => _showColorPickerDialog(context, currentColor, onColorChanged),
+            onTap: () =>
+                _showColorPickerDialog(context, currentColor, onColorChanged),
             child: Container(
               width: 50.w,
               height: 30.h,
@@ -143,7 +155,10 @@ class _DevThemeToolsState extends State<DevThemeTools> {
                 borderRadius: BorderRadius.circular(8.r),
                 border: Border.all(color: Colors.white30, width: 1.5.w),
                 boxShadow: [
-                  BoxShadow(color: currentColor.withOpacity(0.4), blurRadius: 8.r, spreadRadius: 1.r),
+                  BoxShadow(
+                      color: currentColor.withValues(alpha: 0.4),
+                      blurRadius: 8.r,
+                      spreadRadius: 1.r),
                 ],
               ),
             ),
@@ -153,21 +168,23 @@ class _DevThemeToolsState extends State<DevThemeTools> {
     );
   }
 
-  void _showColorPickerDialog(BuildContext context, Color startColor, Function(Color) onColorChanged) {
+  void _showColorPickerDialog(
+      BuildContext context, Color startColor, Function(Color) onColorChanged) {
     Color pickerColor = startColor;
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF1E293B),
-          title: Text('Pick a Color', style: TextStyle(color: Colors.white)),
+          title:
+              const Text('Pick a Color', style: TextStyle(color: Colors.white)),
           content: SingleChildScrollView(
             child: ColorPicker(
               pickerColor: pickerColor,
               onColorChanged: (c) {
                 pickerColor = c;
                 // Live update (Optional: can move this to onActions if simpler, but live is request)
-                onColorChanged(c); 
+                onColorChanged(c);
               },
               // ⚙️ CONFIGURATION TO MATCH "LIKE THIS" (Chrome/Figma Style)
               colorPickerWidth: 300,
@@ -181,7 +198,8 @@ class _DevThemeToolsState extends State<DevThemeTools> {
           ),
           actions: [
             TextButton(
-              child: Text('Done', style: TextStyle(color: Colors.blueAccent)),
+              child: const Text('Done',
+                  style: TextStyle(color: Colors.blueAccent)),
               onPressed: () => Navigator.of(context).pop(),
             ),
           ],
@@ -189,8 +207,14 @@ class _DevThemeToolsState extends State<DevThemeTools> {
       },
     );
   }
+
   String _colorToHex(Color c) {
-    return c.value.toRadixString(16).padLeft(8, '0').toUpperCase().substring(2);
+    return c
+        .toARGB32()
+        .toRadixString(16)
+        .padLeft(8, '0')
+        .toUpperCase()
+        .substring(2);
   }
 }
 

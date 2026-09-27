@@ -78,13 +78,13 @@ class ParticlePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     for (var particle in particles) {
       final paint = Paint()
-        ..color = Colors.white.withOpacity(particle.opacity)
+        ..color = Colors.white.withValues(alpha: particle.opacity)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
 
       final yOffset = (particle.y + (progress * particle.speed)) % 1.0;
       final dy = yOffset * size.height;
       final dx = particle.x * size.width;
-      
+
       // Floating movement
       final wobble = sin(progress * 2 * pi + particle.x * 10) * 10;
 
@@ -93,12 +93,12 @@ class ParticlePainter extends CustomPainter {
         particle.size,
         paint,
       );
-      
+
       // Second layer for glow effect
       final glowPaint = Paint()
-        ..color = Colors.white.withOpacity(particle.opacity * 0.5)
+        ..color = Colors.white.withValues(alpha: particle.opacity * 0.5)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-        
+
       canvas.drawCircle(
         Offset(dx + wobble, dy),
         particle.size * 1.5,

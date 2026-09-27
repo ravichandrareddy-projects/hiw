@@ -82,7 +82,7 @@ class _SnowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.55); // strong snow
+      ..color = Colors.white.withValues(alpha: 0.55); // strong snow
 
     for (final f in flakes) {
       canvas.drawCircle(

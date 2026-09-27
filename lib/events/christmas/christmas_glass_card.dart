@@ -20,7 +20,6 @@ class ChristmasGlassCard extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none, // 🔥 IMPORTANT: allow snow overflow
       children: [
-
         // ❄️ SNOW DUST (BEHIND GLASS)
         Positioned.fill(
           child: IgnorePointer(
@@ -38,10 +37,10 @@ class ChristmasGlassCard extends StatelessWidget {
             child: Container(
               padding: padding,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(radius),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.35),
+                  color: Colors.white.withValues(alpha: 0.35),
                 ),
               ),
               child: child,
@@ -74,8 +73,7 @@ class _SnowDustPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.22);
+    final paint = Paint()..color = Colors.white.withValues(alpha: 0.22);
 
     for (int i = 0; i < 60; i++) {
       canvas.drawCircle(
@@ -101,8 +99,7 @@ class _SnowCapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.98);
+    final paint = Paint()..color = Colors.white.withValues(alpha: 0.98);
 
     for (int i = 0; i < 32; i++) {
       canvas.drawCircle(

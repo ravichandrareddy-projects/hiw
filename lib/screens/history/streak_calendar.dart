@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/history_store.dart';
 import '../../widgets/premium_glass_card.dart';
+import '../../themes/hiw_theme.dart';
 
 class StreakCalendar extends StatefulWidget {
   final DateTime selectedDate;
@@ -24,20 +25,27 @@ class _StreakCalendarState extends State<StreakCalendar> {
   @override
   void initState() {
     super.initState();
-    _currentMonth = DateTime(widget.selectedDate.year, widget.selectedDate.month);
+    _currentMonth =
+        DateTime(widget.selectedDate.year, widget.selectedDate.month);
   }
 
   void _changeMonth(int offset) {
     setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + offset);
+      _currentMonth =
+          DateTime(_currentMonth.year, _currentMonth.month + offset);
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = HiwTheme.of(context);
+    final accent = Theme.of(context).primaryColor;
     final monthName = DateFormat('MMMM yyyy').format(_currentMonth);
-    final daysInMonth = DateUtils.getDaysInMonth(_currentMonth.year, _currentMonth.month);
-    final firstDayOffset = DateTime(_currentMonth.year, _currentMonth.month, 1).weekday - 1; // Mon=0
+    final daysInMonth =
+        DateUtils.getDaysInMonth(_currentMonth.year, _currentMonth.month);
+    final firstDayOffset =
+        DateTime(_currentMonth.year, _currentMonth.month, 1).weekday -
+            1; // Mon=0
 
     return Column(
       children: [
@@ -45,35 +53,40 @@ class _StreakCalendarState extends State<StreakCalendar> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            InkWell(
+            GestureDetector(
               onTap: () => _changeMonth(-1),
-              borderRadius: BorderRadius.circular(10.r),
               child: Container(
                 padding: EdgeInsets.all(8.r),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.06),
+                  color: t.isMinimal
+                      ? accent.withValues(alpha: 0.08)
+                      : Colors.white.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10.r),
-                  border: Border.all(color: Colors.white10),
+                  border: Border.all(
+                      color: t.isMinimal ? t.cardStroke : Colors.white10),
                 ),
-                child: const Icon(Icons.arrow_back_ios_new, size: 14, color: Colors.tealAccent),
+                child: Icon(Icons.arrow_back_ios_new,
+                    size: 14, color: accent),
               ),
             ),
             Container(
               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
               decoration: BoxDecoration(
-                color: Colors.tealAccent.withOpacity(0.12),
+                color: accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14.r),
-                border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
+                border:
+                    Border.all(color: accent.withValues(alpha: 0.3)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.tealAccent.withOpacity(0.1),
+                    color: accent.withValues(alpha: 0.1),
                     blurRadius: 8,
                   )
                 ],
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_month, size: 14, color: Colors.tealAccent),
+                  Icon(Icons.calendar_month,
+                      size: 14, color: accent),
                   SizedBox(width: 8.w),
                   Text(
                     monthName.toUpperCase(),
@@ -81,23 +94,26 @@ class _StreakCalendarState extends State<StreakCalendar> {
                       fontWeight: FontWeight.w800,
                       fontSize: 12.sp,
                       letterSpacing: 1.1,
-                      color: Colors.white,
+                      color: t.inkColor,
                     ),
                   ),
                 ],
               ),
             ),
-            InkWell(
+            GestureDetector(
               onTap: () => _changeMonth(1),
-              borderRadius: BorderRadius.circular(10.r),
               child: Container(
                 padding: EdgeInsets.all(8.r),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.06),
+                  color: t.isMinimal
+                      ? accent.withValues(alpha: 0.08)
+                      : Colors.white.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10.r),
-                  border: Border.all(color: Colors.white10),
+                  border: Border.all(
+                      color: t.isMinimal ? t.cardStroke : Colors.white10),
                 ),
-                child: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.tealAccent),
+                child: Icon(Icons.arrow_forward_ios,
+                    size: 14, color: accent),
               ),
             ),
           ],
@@ -113,7 +129,8 @@ class _StreakCalendarState extends State<StreakCalendar> {
               // WEEKDAY LABELS
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day) {
+                children: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+                    .map((day) {
                   return SizedBox(
                     width: 32.w,
                     child: Text(
@@ -123,7 +140,7 @@ class _StreakCalendarState extends State<StreakCalendar> {
                         fontWeight: FontWeight.bold,
                         fontSize: 10.sp,
                         letterSpacing: 0.5,
-                        color: Colors.tealAccent.withOpacity(0.7),
+                        color: accent.withValues(alpha: 0.8),
                       ),
                     ),
                   );
@@ -143,14 +160,17 @@ class _StreakCalendarState extends State<StreakCalendar> {
                 ),
                 itemCount: 42, // 6 weeks
                 itemBuilder: (context, index) {
-                  if (index < firstDayOffset || index >= firstDayOffset + daysInMonth) {
+                  if (index < firstDayOffset ||
+                      index >= firstDayOffset + daysInMonth) {
                     return const SizedBox.shrink();
                   }
 
                   final dayNum = index - firstDayOffset + 1;
-                  final date = DateTime(_currentMonth.year, _currentMonth.month, dayNum);
-                  
-                  final isSelected = DateUtils.isSameDay(date, widget.selectedDate);
+                  final date =
+                      DateTime(_currentMonth.year, _currentMonth.month, dayNum);
+
+                  final isSelected =
+                      DateUtils.isSameDay(date, widget.selectedDate);
                   final hasStreak = HistoryStore().hasStreak(date);
                   final entries = HistoryStore().getEntriesForDate(date);
                   final hasEntries = entries.isNotEmpty;
@@ -159,7 +179,7 @@ class _StreakCalendarState extends State<StreakCalendar> {
                   final today = DateTime(now.year, now.month, now.day);
                   final isFuture = date.isAfter(today);
 
-                  Color dayColor = Colors.white;
+                  Color dayColor = t.inkColor;
                   if (hasEntries) {
                     final stats = HistoryStore().getStatsForDate(date);
                     final healthyPct = stats['healthyPercent'] ?? 0;
@@ -188,40 +208,48 @@ class _StreakCalendarState extends State<StreakCalendar> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (hasStreak)
-                          Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 14.r)
+                          Icon(Icons.local_fire_department,
+                              color: Colors.orangeAccent, size: 14.r)
                         else
                           SizedBox(height: 14.h),
-                        
                         Container(
                           width: 32.w,
                           height: 32.h,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: isSelected
-                                ? Colors.tealAccent
+                                ? accent
                                 : (isFuture
-                                    ? Colors.white.withOpacity(0.02)
+                                    ? t.mutedColor.withValues(alpha: 0.08)
                                     : (hasEntries
-                                        ? dayColor.withOpacity(0.25)
-                                        : Colors.white.withOpacity(0.06))),
+                                        ? dayColor.withValues(alpha: 0.25)
+                                        : (t.isMinimal
+                                            ? Colors.black
+                                                .withValues(alpha: 0.04)
+                                            : Colors.white.withValues(
+                                                alpha: 0.06)))),
                             border: Border.all(
                               color: isSelected
                                   ? Colors.white
                                   : (hasEntries
-                                      ? dayColor.withOpacity(0.6)
-                                      : Colors.white.withOpacity(isFuture ? 0.04 : 0.15)),
+                                      ? dayColor.withValues(alpha: 0.6)
+                                      : (t.isMinimal
+                                          ? t.cardStroke
+                                          : Colors.white.withValues(
+                                              alpha:
+                                                  isFuture ? 0.04 : 0.15))),
                               width: isSelected ? 2 : 1,
                             ),
                             boxShadow: [
                               if (isSelected)
-                                const BoxShadow(
-                                  color: Colors.tealAccent,
+                                BoxShadow(
+                                  color: accent,
                                   blurRadius: 10,
                                   spreadRadius: 1,
                                 ),
                               if (hasEntries && !isSelected && !isFuture)
                                 BoxShadow(
-                                  color: dayColor.withOpacity(0.3),
+                                  color: dayColor.withValues(alpha: 0.3),
                                   blurRadius: 6,
                                 ),
                             ],
@@ -232,8 +260,12 @@ class _StreakCalendarState extends State<StreakCalendar> {
                             style: TextStyle(
                               color: isSelected
                                   ? Colors.black
-                                  : (isFuture ? Colors.white24 : Colors.white),
-                              fontWeight: isSelected || hasEntries ? FontWeight.w900 : FontWeight.w500,
+                                  : (isFuture
+                                      ? t.mutedColor
+                                      : t.inkColor),
+                              fontWeight: isSelected || hasEntries
+                                  ? FontWeight.w900
+                                  : FontWeight.w500,
                               fontSize: 12.sp,
                             ),
                           ),

@@ -22,7 +22,7 @@
 
 
     <application
-        android:label="HIW-T"
+        android:label="HIW"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">

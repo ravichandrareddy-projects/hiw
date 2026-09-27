@@ -20,9 +20,11 @@ class _FireworksAnimationState extends State<FireworksAnimation>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 16),
-    )..addListener(() {
+    )
+      ..addListener(() {
         _update();
-      })..repeat();
+      })
+      ..repeat();
   }
 
   void _update() {
@@ -111,7 +113,7 @@ class _FireworksPainter extends CustomPainter {
       for (final p in fw.particles) {
         if (p.life <= 0) continue;
         final paint = Paint()
-          ..color = fw.color.withOpacity(p.life)
+          ..color = fw.color.withValues(alpha: p.life)
           ..strokeWidth = 2
           ..strokeCap = StrokeCap.round;
 

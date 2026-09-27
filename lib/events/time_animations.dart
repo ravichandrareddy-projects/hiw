@@ -10,14 +10,17 @@ class MorningWind extends StatefulWidget {
   State<MorningWind> createState() => _MorningWindState();
 }
 
-class _MorningWindState extends State<MorningWind> with SingleTickerProviderStateMixin {
+class _MorningWindState extends State<MorningWind>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   final List<_WindLine> _lines = List.generate(15, (_) => _WindLine.random());
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 10))..repeat();
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 10))
+          ..repeat();
   }
 
   @override
@@ -48,7 +51,8 @@ class _WindLine {
   _WindLine(this.x, this.y, this.length, this.speed);
   factory _WindLine.random() {
     final r = Random();
-    return _WindLine(r.nextDouble(), r.nextDouble(), r.nextDouble() * 50 + 50, r.nextDouble() * 0.005 + 0.002);
+    return _WindLine(r.nextDouble(), r.nextDouble(), r.nextDouble() * 50 + 50,
+        r.nextDouble() * 0.005 + 0.002);
   }
   void update() {
     x += speed;
@@ -65,7 +69,7 @@ class _WindPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.15)
+      ..color = Colors.white.withValues(alpha: 0.15)
       ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
 
@@ -77,6 +81,7 @@ class _WindPainter extends CustomPainter {
       );
     }
   }
+
   @override
   bool shouldRepaint(_) => true;
 }
@@ -89,13 +94,16 @@ class AfternoonSun extends StatefulWidget {
   State<AfternoonSun> createState() => _AfternoonSunState();
 }
 
-class _AfternoonSunState extends State<AfternoonSun> with SingleTickerProviderStateMixin {
+class _AfternoonSunState extends State<AfternoonSun>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 20))..repeat();
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 20))
+          ..repeat();
   }
 
   @override
@@ -108,7 +116,7 @@ class _AfternoonSunState extends State<AfternoonSun> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final now = DateTime.now();
     // Afternoon is 12:00 to 16:59 (5 hours total)
-    final totalMinutes = 5 * 60;
+    const totalMinutes = 5 * 60;
     final currentMinutes = (now.hour - 12) * 60 + now.minute;
     final progress = (currentMinutes / totalMinutes).clamp(0.0, 1.0);
 
@@ -116,7 +124,7 @@ class _AfternoonSunState extends State<AfternoonSun> with SingleTickerProviderSt
       children: [
         Positioned(
           right: 20,
-          top: 50 + (progress * 300), 
+          top: 50 + (progress * 300),
           child: AnimatedBuilder(
             animation: _controller,
             builder: (context, _) {
@@ -139,14 +147,14 @@ class _AfternoonSunState extends State<AfternoonSun> with SingleTickerProviderSt
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            Colors.orangeAccent.withOpacity(0.9),
-                            Colors.yellowAccent.withOpacity(0.4),
-                            Colors.orange.withOpacity(0.0),
+                            Colors.orangeAccent.withValues(alpha: 0.9),
+                            Colors.yellowAccent.withValues(alpha: 0.4),
+                            Colors.orange.withValues(alpha: 0.0),
                           ],
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.orange.withOpacity(0.2),
+                            color: Colors.orange.withValues(alpha: 0.2),
                             blurRadius: 30.r,
                             spreadRadius: 10.r,
                           ),
@@ -172,26 +180,28 @@ class _SunRaysPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final paint = Paint()
-      ..color = Colors.orangeAccent.withOpacity(0.15)
+      ..color = Colors.orangeAccent.withValues(alpha: 0.15)
       ..style = PaintingStyle.fill;
 
-    final rayCount = 8;
-    final innerRadius = 35.0;
-    final outerRadius = 70.0;
-    final angleStep = (2 * pi) / rayCount;
+    const rayCount = 8;
+    const innerRadius = 35.0;
+    const outerRadius = 70.0;
+    const angleStep = (2 * pi) / rayCount;
 
     canvas.save();
     canvas.translate(center.dx, center.dy);
     canvas.rotate(animationValue * 2 * pi); // Soft rotation
 
     for (int i = 0; i < rayCount; i++) {
-        final angle = i * angleStep;
-        final path = Path();
-        path.moveTo(cos(angle - 0.2) * innerRadius, sin(angle - 0.2) * innerRadius);
-        path.lineTo(cos(angle) * outerRadius, sin(angle) * outerRadius);
-        path.lineTo(cos(angle + 0.2) * innerRadius, sin(angle + 0.2) * innerRadius);
-        path.close();
-        canvas.drawPath(path, paint);
+      final angle = i * angleStep;
+      final path = Path();
+      path.moveTo(
+          cos(angle - 0.2) * innerRadius, sin(angle - 0.2) * innerRadius);
+      path.lineTo(cos(angle) * outerRadius, sin(angle) * outerRadius);
+      path.lineTo(
+          cos(angle + 0.2) * innerRadius, sin(angle + 0.2) * innerRadius);
+      path.close();
+      canvas.drawPath(path, paint);
     }
     canvas.restore();
   }
@@ -208,14 +218,17 @@ class NightStars extends StatefulWidget {
   State<NightStars> createState() => _NightStarsState();
 }
 
-class _NightStarsState extends State<NightStars> with SingleTickerProviderStateMixin {
+class _NightStarsState extends State<NightStars>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   final List<_Star> _stars = List.generate(100, (_) => _Star.random());
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat();
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 4))
+          ..repeat();
   }
 
   @override
@@ -243,7 +256,8 @@ class _Star {
   _Star(this.x, this.y, this.size, this.phase);
   factory _Star.random() {
     final r = Random();
-    return _Star(r.nextDouble(), r.nextDouble(), r.nextDouble() * 2 + 1, r.nextDouble() * pi * 2);
+    return _Star(r.nextDouble(), r.nextDouble(), r.nextDouble() * 2 + 1,
+        r.nextDouble() * pi * 2);
   }
 }
 
@@ -255,11 +269,15 @@ class _StarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (var s in stars) {
-      final opacity = (0.2 + 0.8 * (0.5 + 0.5 * sin(animationValue * pi * 4 + s.phase))).clamp(0.0, 1.0);
-      final paint = Paint()..color = Colors.white.withOpacity(opacity);
-      canvas.drawCircle(Offset(s.x * size.width, s.y * size.height), s.size, paint);
+      final opacity =
+          (0.2 + 0.8 * (0.5 + 0.5 * sin(animationValue * pi * 4 + s.phase)))
+              .clamp(0.0, 1.0);
+      final paint = Paint()..color = Colors.white.withValues(alpha: opacity);
+      canvas.drawCircle(
+          Offset(s.x * size.width, s.y * size.height), s.size, paint);
     }
   }
+
   @override
   bool shouldRepaint(_) => true;
 }
@@ -272,13 +290,16 @@ class EveningSunset extends StatefulWidget {
   State<EveningSunset> createState() => _EveningSunsetState();
 }
 
-class _EveningSunsetState extends State<EveningSunset> with SingleTickerProviderStateMixin {
+class _EveningSunsetState extends State<EveningSunset>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 15))..repeat(reverse: true);
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 15))
+          ..repeat(reverse: true);
   }
 
   @override
@@ -317,8 +338,9 @@ class _EveningSunsetState extends State<EveningSunset> with SingleTickerProvider
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            Colors.deepOrange.withOpacity(0.4 * (1.0 - progress * 0.5)),
-                            Colors.orangeAccent.withOpacity(0.1),
+                            Colors.deepOrange.withValues(
+                                alpha: 0.4 * (1.0 - progress * 0.5)),
+                            Colors.orangeAccent.withValues(alpha: 0.1),
                             Colors.transparent,
                           ],
                         ),
@@ -340,7 +362,7 @@ class _EveningSunsetState extends State<EveningSunset> with SingleTickerProvider
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.deepOrange.withOpacity(0.5),
+                            color: Colors.deepOrange.withValues(alpha: 0.5),
                             blurRadius: 40.r + (_controller.value * 20),
                             spreadRadius: 5.r,
                           ),

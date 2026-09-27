@@ -20,11 +20,11 @@ class SankrantiBackground extends StatelessWidget {
 
         // 🪁 LIGHTEST OVERLAY FOR CARD CONTRAST
         Container(
-          color: Colors.white.withOpacity(0.08),
+          color: Colors.white.withValues(alpha: 0.08),
         ),
 
         // 🪁 ANIMATED KITES (Subtle)
-        Positioned.fill(
+        const Positioned.fill(
           child: FallingKites(count: 3),
         ),
 

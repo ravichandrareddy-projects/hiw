@@ -1,5 +1,4 @@
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../core/history_store.dart';
 import '../core/food_item.dart';
@@ -18,8 +17,7 @@ class WeeklyHistoryScreen extends StatelessWidget {
 
     final entries = HistoryStore().allEntries.where((e) {
       final t = e.food.time;
-      return !t.isBefore(_dayStart(weekStart)) &&
-          !t.isAfter(_dayEnd(weekEnd));
+      return !t.isBefore(_dayStart(weekStart)) && !t.isAfter(_dayEnd(weekEnd));
     }).toList();
 
     final Map<String, List<FoodItem>> byDay = {};
@@ -31,7 +29,7 @@ class WeeklyHistoryScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(title: Text("Weekly History")),
+      appBar: AppBar(title: const Text("Weekly History")),
       body: ListView(
         padding: EdgeInsets.all(16.r),
         children: [
@@ -81,13 +79,22 @@ class WeeklyHistoryScreen extends StatelessWidget {
       child: ExpansionTile(
         title: Text(
           "${date.day}-${date.month}-${date.year}",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color),
+          style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).textTheme.bodyLarge?.color),
         ),
-        subtitle: Text("Expand for details", style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 12.sp)),
+        subtitle: Text("Expand for details",
+            style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+                fontSize: 12.sp)),
         children: foods.map((f) {
           return ListTile(
-            title: Text("${_meal(f.mealType)} • ${f.name}", style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
-            subtitle: Text("${f.calories} kcal • ${_time(f.time)}", style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color)),
+            title: Text("${_meal(f.mealType)} • ${f.name}",
+                style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color)),
+            subtitle: Text("${f.calories} kcal • ${_time(f.time)}",
+                style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color)),
           );
         }).toList(),
       ),
@@ -96,14 +103,11 @@ class WeeklyHistoryScreen extends StatelessWidget {
 
   // ---------------- helpers ----------------
 
-  DateTime _dayStart(DateTime d) =>
-      DateTime(d.year, d.month, d.day);
+  DateTime _dayStart(DateTime d) => DateTime(d.year, d.month, d.day);
 
-  DateTime _dayEnd(DateTime d) =>
-      DateTime(d.year, d.month, d.day, 23, 59, 59);
+  DateTime _dayEnd(DateTime d) => DateTime(d.year, d.month, d.day, 23, 59, 59);
 
-  String _fmt(DateTime d) =>
-      "${d.day}/${d.month}/${d.year}";
+  String _fmt(DateTime d) => "${d.day}/${d.month}/${d.year}";
 
   String _meal(MealType t) {
     switch (t) {
@@ -122,5 +126,4 @@ class WeeklyHistoryScreen extends StatelessWidget {
 
   String _time(DateTime t) =>
       "${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}";
-
 }

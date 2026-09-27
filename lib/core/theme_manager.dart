@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../themes/app_theme.dart';
+import '../themes/hiw_theme.dart';
 import '../core/app_state.dart';
 
 class ThemeManager extends ChangeNotifier {
@@ -19,9 +20,23 @@ class ThemeManager extends ChangeNotifier {
 
   // 2. DEV OVERRIDES STATE
   Color? _backgroundColorOverride;
-  Color? _cardColorOverride; 
+  Color? _cardColorOverride;
   Color? _primaryColorOverride;
-  double _opacityOverride = 0.2; 
+  double _opacityOverride = 0.2;
+
+  // 2b. CUSTOMIZE THEME STATE (persisted via AppState)
+  Color? _customBg;
+  Color? _customCard;
+  Color? _customPrimary;
+
+  // Plain defaults used when the user hasn't picked a custom color yet.
+  static const Color _plainBg = Color(0xFFFBF7EF);
+  static const Color _plainCard = Colors.white;
+  static const Color _plainPrimary = Color(0xFFE86A1D);
+
+  Color get customizeBg => _customBg ?? _plainBg;
+  Color get customizeCard => _customCard ?? _plainCard;
+  Color get customizePrimary => _customPrimary ?? _plainPrimary;
 
   // Getters
   Color? get backgroundColorOverride => _backgroundColorOverride;
@@ -33,6 +48,47 @@ class ThemeManager extends ChangeNotifier {
   // THEME DATA GENERATION
   // -------------------------
   ThemeData get currentThemeData {
+    // 🎨 CUSTOMIZE theme: Plain base + user palette.
+    if (_currentThemeName == 'customize') {
+      final bg = customizeBg;
+      final card = customizeCard;
+      final primary = customizePrimary;
+      // Auto ink: dark text on light bg, light text on dark bg.
+      final darkBg = bg.computeLuminance() < 0.4;
+      final ink = darkBg ? Colors.white : const Color(0xFF211D16);
+      final muted = darkBg ? Colors.white70 : const Color(0xFF8A8171);
+      return ThemeData(
+        brightness: darkBg ? Brightness.dark : Brightness.light,
+        scaffoldBackgroundColor: bg,
+        primaryColor: primary,
+        cardColor: card,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: primary,
+          brightness: darkBg ? Brightness.dark : Brightness.light,
+          primary: primary,
+          surface: card,
+        ),
+        textTheme: TextTheme(
+          bodyLarge: TextStyle(color: ink, fontWeight: FontWeight.w600),
+          bodyMedium: TextStyle(color: muted),
+          titleLarge: TextStyle(color: ink, fontWeight: FontWeight.bold),
+        ),
+        iconTheme: IconThemeData(color: primary),
+        extensions: <ThemeExtension<dynamic>>[
+          HiwTheme.minimal().copyWith(
+            cardBackground: card,
+            cardStroke: darkBg
+                ? Colors.white.withValues(alpha: 0.2)
+                : const Color(0xFFE9E2D5),
+            inkColor: ink,
+            mutedColor: muted,
+            accentColor: primary,
+          ),
+        ],
+        useMaterial3: true,
+      );
+    }
+
     // Start with the base time-based theme
     ThemeData base = AppTheme.getTheme(_currentThemeName);
 
@@ -59,6 +115,12 @@ class ThemeManager extends ChangeNotifier {
 
   Future<void> _loadTheme() async {
     _currentThemeName = await AppState.getTheme();
+    final bg = await AppState.getCustomColor('bg');
+    final card = await AppState.getCustomColor('card');
+    final primary = await AppState.getCustomColor('primary');
+    if (bg != null) _customBg = Color(bg);
+    if (card != null) _customCard = Color(card);
+    if (primary != null) _customPrimary = Color(primary);
     notifyListeners();
   }
 
@@ -96,6 +158,35 @@ class ThemeManager extends ChangeNotifier {
     _cardColorOverride = null;
     _primaryColorOverride = null;
     _opacityOverride = 0.2;
+    notifyListeners();
+  }
+
+  // -------------------------
+  // CUSTOMIZE THEME (persisted)
+  // -------------------------
+  Future<void> setCustomColor(String which, Color color) async {
+    switch (which) {
+      case 'bg':
+        _customBg = color;
+        break;
+      case 'card':
+        _customCard = color;
+        break;
+      case 'primary':
+        _customPrimary = color;
+        break;
+      default:
+        return;
+    }
+    await AppState.setCustomColor(which, color.toARGB32());
+    notifyListeners();
+  }
+
+  Future<void> resetCustomColors() async {
+    _customBg = null;
+    _customCard = null;
+    _customPrimary = null;
+    await AppState.clearCustomColors();
     notifyListeners();
   }
 

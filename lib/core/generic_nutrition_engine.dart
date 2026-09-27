@@ -29,8 +29,57 @@ FoodItem calculateFoodFromAddons({
   double fats     = base.fats;
   double fiber    = base.fiber;
 
+  final withExtras = applyAddonExtras(
+    base: FoodItem(
+      name: foodLabel,
+      mealType: mealType,
+      calories: calories,
+      protein: protein,
+      carbs: carbs,
+      fats: fats,
+      fiber: fiber,
+    ),
+    addons: addons,
+  );
+
+  return FoodItem(
+    name: foodLabel,
+    mealType: mealType,
+    calories: withExtras.calories,
+    protein: withExtras.protein,
+    carbs: withExtras.carbs,
+    fats: withExtras.fats,
+    fiber: withExtras.fiber,
+    // 🆕 Micronutrients come from base (not scaled by addons for simplicity)
+    vitaminA:   base.vitaminA,
+    vitaminC:   base.vitaminC,
+    vitaminB6:  base.vitaminB6,
+    calcium:    base.calcium,
+    iron:       base.iron,
+    potassium:  base.potassium,
+    magnesium:  base.magnesium,
+    sodium:     base.sodium,
+    zinc:       base.zinc,
+  );
+}
+
+/// Adds addon extras (sides, choices, counters) on top of ANY base FoodItem.
+/// Used for foods from the 2.6k nutrition database that have no legacy base entry.
+FoodItem applyAddonExtras({
+  required FoodItem base,
+  required Map<String, dynamic> addons,
+}) {
+  int calories = base.calories;
+  double protein = base.protein;
+  double carbs = base.carbs;
+  double fats = base.fats;
+  double fiber = base.fiber;
+
   addons.forEach((key, value) {
-    if (value is int) {
+    if (value is bool) {
+      // toggle (e.g. extra ghee on/off) — no-op when off.
+      return;
+    } else if (value is int) {
       // counter (e.g., number of dosa)
       calories *= value;
       protein  *= value;
@@ -63,22 +112,49 @@ FoodItem calculateFoodFromAddons({
   });
 
   return FoodItem(
-    name: foodLabel,
-    mealType: mealType,
+    name: base.name,
+    mealType: base.mealType,
     calories: calories,
     protein: protein,
     carbs: carbs,
     fats: fats,
     fiber: fiber,
-    // 🆕 Micronutrients come from base (not scaled by addons for simplicity)
-    vitaminA:   base.vitaminA,
-    vitaminC:   base.vitaminC,
-    vitaminB6:  base.vitaminB6,
-    calcium:    base.calcium,
-    iron:       base.iron,
-    potassium:  base.potassium,
-    magnesium:  base.magnesium,
-    sodium:     base.sodium,
-    zinc:       base.zinc,
+    time: base.time,
+    vitaminA: base.vitaminA,
+    vitaminC: base.vitaminC,
+    vitaminB6: base.vitaminB6,
+    calcium: base.calcium,
+    iron: base.iron,
+    potassium: base.potassium,
+    magnesium: base.magnesium,
+    sodium: base.sodium,
+    zinc: base.zinc,
+  );
+}
+
+/// Scales every nutrient of [food] by the vision-estimated portion [quantity]
+/// (1.0 = standard serving). Quantity of 1.0 returns the item unchanged.
+FoodItem scaledByQuantity(FoodItem food, double quantity) {
+  if (quantity <= 0 || (quantity - 1.0).abs() < 0.001) return food;
+  double s(double v) => double.parse((v * quantity).toStringAsFixed(1));
+  double s2(double v) => double.parse((v * quantity).toStringAsFixed(2));
+  return FoodItem(
+    name: food.name,
+    mealType: food.mealType,
+    calories: (food.calories * quantity).round(),
+    protein: s(food.protein),
+    carbs: s(food.carbs),
+    fats: s(food.fats),
+    fiber: s(food.fiber),
+    time: food.time,
+    vitaminA: s(food.vitaminA),
+    vitaminC: s(food.vitaminC),
+    vitaminB6: s2(food.vitaminB6),
+    calcium: s(food.calcium),
+    iron: s(food.iron),
+    potassium: s(food.potassium),
+    magnesium: s(food.magnesium),
+    sodium: s(food.sodium),
+    zinc: s(food.zinc),
   );
 }

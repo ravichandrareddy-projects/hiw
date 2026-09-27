@@ -73,4 +73,12 @@ const Map<String, AddonNutrition> addonNutritionRules = {
     carbs: 35,
     fiber: 0.0,
   ),
+
+  // -------- SHARED RESULT ADD-ONS (spec examples) --------
+  'ghee': AddonNutrition(calories: 45, fats: 5),
+  'oil': AddonNutrition(calories: 40, fats: 4.5),
+  'butter': AddonNutrition(calories: 35, protein: 0.2, fats: 4),
+  'raita': AddonNutrition(calories: 35, protein: 2, carbs: 4, fats: 1.5, fiber: 0.5),
+  'extra_rice': AddonNutrition(calories: 130, protein: 2.5, carbs: 28, fats: 0.3, fiber: 0.5),
+  'extra_chicken': AddonNutrition(calories: 150, protein: 18, fats: 8),
 };

@@ -6,20 +6,21 @@ import '../config/ai_config.dart';
 class MoodService {
   /// Ask mood check question with empathetic, supportive responses
   static Future<String> askMoodCheck(String userMessage) async {
-    final apiKey = AIConfig.geminiApiKey;
-    
+    const apiKey = AIConfig.geminiApiKey;
+
     if (apiKey.isEmpty) {
-      return "⚠️ Gemini API Key not configured. Please set it in AIConfig.dart";
+      return "⚠️ ${AIConfig.missingKeyHint}";
     }
-    
+
     return _makeRequest(userMessage);
   }
-  
+
   static Future<String> _makeRequest(String message) async {
     final url = Uri.parse(AIConfig.geminiEndpoint);
-    
+
     try {
-      final response = await http.post(
+      final response = await http
+          .post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -52,24 +53,25 @@ class MoodService {
             "maxOutputTokens": 512,
           }
         }),
-      ).timeout(
+      )
+          .timeout(
         const Duration(seconds: 25),
         onTimeout: () {
           print('⚠️ MOOD SERVICE: HTTP request timeout');
           throw Exception('Request timeout');
         },
       );
-      
+
       if (response.statusCode == 401 || response.statusCode == 403) {
         return "⚠️ Invalid Mood Check API Key. Please check your key in AIConfig.dart";
       }
-      
+
       if (response.statusCode != 200) {
         print("MOOD SERVICE ERROR: ${response.statusCode}");
         print("BODY: ${response.body}");
         return "⚠️ Mood support is temporarily unavailable. Error ${response.statusCode}.";
       }
-      
+
       final data = jsonDecode(response.body);
       final candidates = data['candidates'] as List?;
       if (candidates != null && candidates.isNotEmpty) {
@@ -81,9 +83,8 @@ class MoodService {
           }
         }
       }
-      
+
       return "I'm here for you. How can I help? 💙";
-      
     } catch (e) {
       print("MOOD SERVICE EXCEPTION: $e");
       return "⚠️ Connection error. Please try again.";

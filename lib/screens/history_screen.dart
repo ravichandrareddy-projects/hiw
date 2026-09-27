@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/history_store.dart';
 import '../widgets/premium_glass_card.dart';
+import '../themes/hiw_theme.dart';
 import 'history/streak_calendar.dart';
 import 'history/cyber_macro_arcs.dart';
 import 'history/daily_detail_screen.dart';
@@ -50,6 +51,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = HiwTheme.of(context);
+    final accent = Theme.of(context).primaryColor;
     final stats = HistoryStore().getStatsForDate(_selectedDate);
     final entries = HistoryStore().getEntriesForDate(_selectedDate);
     final activeStreak = _calculateActiveStreak();
@@ -60,7 +63,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final carbs = protein * 1.5; // Estimated breakdown for visual gauge
     final fats = (calories * 0.25) / 9.0;
 
-    final formattedSelectedDate = DateFormat('EEEE, MMM d').format(_selectedDate);
+    final formattedSelectedDate =
+        DateFormat('EEEE, MMM d').format(_selectedDate);
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(16.w, 48.h, 16.w, 140.h),
@@ -79,7 +83,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.security, size: 14, color: Colors.tealAccent),
+                        Icon(Icons.security,
+                            size: 14, color: accent),
                         SizedBox(width: 6.w),
                         Text(
                           "CYBER-HEALTH COMMAND HUB",
@@ -87,7 +92,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             fontSize: 10.sp,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 1.1,
-                            color: Colors.white70,
+                            color: t.mutedColor,
                           ),
                         ),
                       ],
@@ -98,7 +103,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       style: TextStyle(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w900,
-                        color: Colors.white,
+                        color: t.inkColor,
                       ),
                     ),
                   ],
@@ -106,21 +111,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
                 // 🔥 STREAK FLAME BADGE
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
                   decoration: BoxDecoration(
-                    color: Colors.orangeAccent.withOpacity(0.15),
+                    color: Colors.orangeAccent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(14.r),
-                    border: Border.all(color: Colors.orangeAccent.withOpacity(0.4)),
+                    border: Border.all(
+                        color: Colors.orangeAccent.withValues(alpha: 0.4)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.orangeAccent.withOpacity(0.2),
+                        color: Colors.orangeAccent.withValues(alpha: 0.2),
                         blurRadius: 10,
                       )
                     ],
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 18.r),
+                      Icon(Icons.local_fire_department,
+                          color: Colors.orangeAccent, size: 18.r),
                       SizedBox(width: 4.w),
                       Text(
                         "$activeStreak STREAK",
@@ -174,7 +182,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   fontSize: 12.sp,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.1,
-                  color: Colors.tealAccent,
+                  color: accent,
                 ),
               ),
               InkWell(
@@ -184,7 +192,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   style: TextStyle(
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white70,
+                    color: t.mutedColor,
                   ),
                 ),
               ),
@@ -199,18 +207,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.no_meals_outlined, color: Colors.white38, size: 36.r),
+                    Icon(Icons.no_meals_outlined,
+                        color: t.mutedColor, size: 36.r),
                     SizedBox(height: 8.h),
                     Text(
                       "No meals recorded for $formattedSelectedDate.",
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12.sp, color: Colors.white60),
+                      style: TextStyle(fontSize: 12.sp, color: t.mutedColor),
                     ),
                     SizedBox(height: 4.h),
                     Text(
                       "Scan food with HIW-T AI to keep your streak hot! 🔥",
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 11.sp, color: Colors.tealAccent),
+                      style:
+                          TextStyle(fontSize: 11.sp, color: accent),
                     ),
                   ],
                 ),
@@ -232,12 +242,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         Container(
                           padding: EdgeInsets.all(10.r),
                           decoration: BoxDecoration(
-                            color: Colors.tealAccent.withOpacity(0.12),
+                            color: accent.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            entry.calories > 500 ? Icons.lunch_dining : Icons.restaurant,
-                            color: Colors.tealAccent,
+                            entry.calories > 500
+                                ? Icons.lunch_dining
+                                : Icons.restaurant,
+                            color: accent,
                             size: 20.r,
                           ),
                         ),
@@ -251,7 +263,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 style: TextStyle(
                                   fontSize: 14.sp,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: t.inkColor,
                                 ),
                               ),
                               SizedBox(height: 2.h),
@@ -259,7 +271,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 "${entry.mealType.name.toUpperCase()} • ${DateFormat('h:mm a').format(entry.time)}",
                                 style: TextStyle(
                                   fontSize: 10.sp,
-                                  color: Colors.white54,
+                                  color: t.mutedColor,
                                 ),
                               ),
                             ],
@@ -273,7 +285,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               style: TextStyle(
                                 fontSize: 13.sp,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.tealAccent,
+                                color: accent,
                               ),
                             ),
                             if (entry.protein > 0)
@@ -281,7 +293,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 "${entry.protein.toInt()}g protein",
                                 style: TextStyle(
                                   fontSize: 10.sp,
-                                  color: Colors.white54,
+                                  color: t.mutedColor,
                                 ),
                               ),
                           ],

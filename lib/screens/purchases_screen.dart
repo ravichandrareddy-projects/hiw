@@ -1,14 +1,15 @@
 //purchase screen
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../themes/hiw_theme.dart';
 
 class PurchasesScreen extends StatelessWidget {
   const PurchasesScreen({super.key});
 
   Future<void> _openYt() async {
-    final url = Uri.parse('https://www.youtube.com/results?search_query=easy+vegetable+recipe+healthy');
+    final url = Uri.parse(
+        'https://www.youtube.com/results?search_query=easy+vegetable+recipe+healthy');
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
@@ -16,12 +17,15 @@ class PurchasesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = HiwTheme.of(context);
+    final accent = Theme.of(context).primaryColor;
     return Scaffold(
-      backgroundColor: const Color(0xFF020617),
+      backgroundColor: t.isMinimal ? null : const Color(0xFF020617),
       appBar: AppBar(
-        title: Text('Shop'),
+        title: Text('Shop', style: TextStyle(color: t.inkColor)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        iconTheme: IconThemeData(color: t.inkColor),
       ),
       body: Center(
         child: Padding(
@@ -32,7 +36,7 @@ class PurchasesScreen extends StatelessWidget {
               Icon(
                 Icons.rocket_launch_rounded,
                 size: 80,
-                color: Colors.tealAccent,
+                color: accent,
               ),
               SizedBox(height: 24.h),
               Text(
@@ -41,7 +45,7 @@ class PurchasesScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 24.sp,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white.withOpacity(0.9),
+                  color: t.inkColor,
                   letterSpacing: 1.2,
                 ),
               ),
@@ -50,8 +54,8 @@ class PurchasesScreen extends StatelessWidget {
                 height: 2.h,
                 width: 60.w,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Colors.tealAccent, Colors.blueAccent],
+                  gradient: LinearGradient(
+                    colors: [accent, accent.withValues(alpha: 0.3)],
                   ),
                   borderRadius: BorderRadius.circular(10.r),
                 ),

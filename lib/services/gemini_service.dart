@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../config/ai_config.dart';
 
 class GeminiService {
-  static const String _defaultSystemPrompt = 
+  static const String _defaultSystemPrompt =
       "You are Foodity, a specialized Food, Nutrition, and Health AI assistant for the HIW (Health Is Wealth) app. "
       "Your task is to provide helpful, professional, and friendly advice ONLY regarding food, nutrition, diet, meal planning, healthy eating, and general health.\n\n"
       "CRITICAL GUARDRAIL RULES:\n"
@@ -13,17 +13,19 @@ class GeminiService {
       "3. Keep all answers clear, concise, accurate, and motivating.";
 
   /// Send prompt to Gemini API for Foodity chat answers
-  static Future<String> ask(String question, {String? customSystemPrompt}) async {
-    final apiKey = AIConfig.geminiApiKey;
+  static Future<String> ask(String question,
+      {String? customSystemPrompt}) async {
+    const apiKey = AIConfig.geminiApiKey;
     if (apiKey.isEmpty) {
-      return "⚠️ Gemini API Key not found! Please configure it in AIConfig.dart";
+      return "⚠️ ${AIConfig.missingKeyHint}";
     }
 
     final url = Uri.parse(AIConfig.geminiEndpoint);
     final String systemPrompt = customSystemPrompt ?? _defaultSystemPrompt;
 
     try {
-      final response = await http.post(
+      final response = await http
+          .post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -47,7 +49,8 @@ class GeminiService {
             "maxOutputTokens": 1024,
           }
         }),
-      ).timeout(
+      )
+          .timeout(
         const Duration(seconds: 25),
         onTimeout: () {
           throw Exception('Request timeout');
@@ -76,7 +79,6 @@ class GeminiService {
       }
 
       return "🤔 Foodity is thinking, but couldn't process the response.";
-
     } catch (e) {
       print("GEMINI EXCEPTION: $e");
       return "⚠️ Connection error to Gemini Cloud.";

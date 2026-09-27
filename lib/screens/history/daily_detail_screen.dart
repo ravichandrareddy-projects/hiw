@@ -5,6 +5,7 @@ import '../../core/food_item.dart';
 import '../../core/theme_manager.dart';
 import '../../events/event_manager.dart';
 import '../../widgets/premium_glass_card.dart'; // 🆕
+import '../../themes/hiw_theme.dart';
 import 'package:intl/intl.dart';
 
 class DailyDetailScreen extends StatelessWidget {
@@ -38,7 +39,8 @@ class DailyDetailScreen extends StatelessWidget {
         ),
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: Theme.of(context).primaryColor),
+          icon: Icon(Icons.arrow_back_ios_new,
+              color: Theme.of(context).primaryColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -71,7 +73,7 @@ class DailyDetailScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              Divider(indent: 20, endIndent: 20),
+              const Divider(indent: 20, endIndent: 20),
 
               // LIST
               Expanded(
@@ -79,7 +81,8 @@ class DailyDetailScreen extends StatelessWidget {
                     ? Center(
                         child: Text(
                           'No meals logged for this day.',
-                          style: TextStyle(color: Theme.of(context).disabledColor),
+                          style:
+                              TextStyle(color: Theme.of(context).disabledColor),
                         ),
                       )
                     : ListView.builder(
@@ -106,13 +109,15 @@ class _MealCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = HiwTheme.of(context);
     final timeStr = DateFormat('hh:mm a').format(food.time);
-    
+
     // Logic for Status
     final isHeavy = food.calories > 500;
     final status = isHeavy ? "Heavy Meal" : "Healthy Choice";
     // We keep status text color distinct but fit the glass theme
-    final statusColor = isHeavy ? Colors.orangeAccent : Colors.tealAccent;
+    final statusColor =
+        isHeavy ? Colors.orangeAccent : Theme.of(context).primaryColor;
 
     return Padding(
       padding: EdgeInsets.only(bottom: 16.h),
@@ -128,7 +133,8 @@ class _MealCard extends StatelessWidget {
                 // PILL 1: MEAL TYPE
                 PremiumGlassCard(
                   isInnerPill: true,
-                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
                   borderRadius: 12,
                   child: Text(
                     food.mealType.name.toUpperCase(),
@@ -140,22 +146,24 @@ class _MealCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 // PILL 2: TIME
                 PremiumGlassCard(
                   isInnerPill: true,
-                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
                   borderRadius: 12,
                   child: Row(
                     children: [
-                      Icon(Icons.access_time, size: 12, color: Colors.white70),
+                      Icon(Icons.access_time,
+                          size: 12, color: t.mutedColor),
                       SizedBox(width: 4.w),
                       Text(
                         timeStr,
                         style: TextStyle(
                           fontSize: 10.sp,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white,
+                          color: t.inkColor,
                         ),
                       ),
                     ],
@@ -163,7 +171,7 @@ class _MealCard extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             SizedBox(height: 16.h),
 
             // MAIN INFO
@@ -176,16 +184,21 @@ class _MealCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18.sp,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(color: Colors.black45, blurRadius: 4.r, offset: Offset(0, 2))
-                      ],
+                      color: t.inkColor,
+                      shadows: t.isMinimal
+                          ? null
+                          : [
+                              Shadow(
+                                  color: Colors.black45,
+                                  blurRadius: 4.r,
+                                  offset: const Offset(0, 2))
+                            ],
                     ),
                   ),
                 ),
               ],
             ),
-            
+
             SizedBox(height: 16.h),
 
             // BOTTOM ROW: STATS (Pills like the image)
@@ -195,22 +208,22 @@ class _MealCard extends StatelessWidget {
                 Expanded(
                   child: PremiumGlassCard(
                     isInnerPill: true,
-                    padding: EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     borderRadius: 16,
                     child: Column(
                       children: [
                         Text(
                           "Calories",
-                          style: TextStyle(fontSize: 11.sp, color: Colors.white70),
+                          style:
+                              TextStyle(fontSize: 11.sp, color: t.mutedColor),
                         ),
                         SizedBox(height: 2.h),
                         Text(
                           "${food.calories}",
                           style: TextStyle(
-                            fontSize: 16.sp, 
-                            fontWeight: FontWeight.bold, 
-                            color: Colors.white
-                          ),
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold,
+                              color: t.inkColor),
                         ),
                       ],
                     ),
@@ -221,20 +234,21 @@ class _MealCard extends StatelessWidget {
                 Expanded(
                   child: PremiumGlassCard(
                     isInnerPill: true,
-                    padding: EdgeInsets.symmetric(vertical: 10),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     borderRadius: 16,
                     child: Column(
                       children: [
                         Text(
                           "Status",
-                          style: TextStyle(fontSize: 11.sp, color: Colors.white70),
+                          style:
+                              TextStyle(fontSize: 11.sp, color: t.mutedColor),
                         ),
                         SizedBox(height: 2.h),
                         Text(
                           status,
                           style: TextStyle(
-                            fontSize: 12.sp, 
-                            fontWeight: FontWeight.bold, 
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.bold,
                             color: statusColor,
                           ),
                         ),

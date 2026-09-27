@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../services/mood_service.dart';
 import '../widgets/premium_glass_card.dart';
+import '../themes/hiw_theme.dart';
 import '../hive/chat_hive_model.dart';
 import '../avatar/avatar_store.dart';
 import '../core/history_store.dart';
@@ -30,7 +31,7 @@ class _MoodSupportScreenState extends State<MoodSupportScreen> {
   void initState() {
     super.initState();
     _loadChatHistory();
-    
+
     // Auto-send initial message if provided
     if (widget.initialMessage != null && widget.initialMessage!.isNotEmpty) {
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -42,19 +43,17 @@ class _MoodSupportScreenState extends State<MoodSupportScreen> {
   Future<void> _loadChatHistory() async {
     final box = await Hive.openBox<ChatHive>('mood_chat_history');
     final today = DateTime.now().toIso8601String().split('T')[0];
-    
+
     // Clear all messages if it's a new day
     final hasOldMessages = box.values.any((chat) => chat.date != today);
     if (hasOldMessages) {
       await box.clear();
     }
-    
+
     // Load today's messages
-    final todayChats = box.values
-        .where((chat) => chat.date == today)
-        .toList()
+    final todayChats = box.values.where((chat) => chat.date == today).toList()
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
-    
+
     setState(() {
       _messages.clear();
       for (final chat in todayChats) {
@@ -70,7 +69,7 @@ class _MoodSupportScreenState extends State<MoodSupportScreen> {
   Future<void> _saveMessage(String text, String sender) async {
     final box = await Hive.openBox<ChatHive>('mood_chat_history');
     final today = DateTime.now().toIso8601String().split('T')[0];
-    
+
     final chat = ChatHive(
       text: text,
       sender: sender,
@@ -78,7 +77,7 @@ class _MoodSupportScreenState extends State<MoodSupportScreen> {
       date: today,
       sessionId: 'mood_chat', // 🆕 Mood chats don't need grouped sessions yet
     );
-    
+
     await box.add(chat);
   }
 
@@ -89,29 +88,31 @@ class _MoodSupportScreenState extends State<MoodSupportScreen> {
       _messages.add("You: $text");
       _loading = true;
     });
-    
+
     try {
       await _saveMessage(text, 'user');
-      
+
       final reply = await MoodService.askMoodCheck(text).timeout(
         const Duration(seconds: 30),
-        onTimeout: () => "I'm here for you. There seems to be a connection issue. Please try again.",
+        onTimeout: () =>
+            "I'm here for you. There seems to be a connection issue. Please try again.",
       );
 
       if (mounted) {
         final botMessage = "💙 Support: $reply";
-        
+
         setState(() {
           _messages.add(botMessage);
           _loading = false;
         });
-        
+
         await _saveMessage(botMessage, 'bot');
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _messages.add("💙 Support: I'm here for you. There was a technical issue, but I'm ready to listen.");
+          _messages.add(
+              "💙 Support: I'm here for you. There was a technical issue, but I'm ready to listen.");
           _loading = false;
         });
       }
@@ -155,7 +156,8 @@ class _MoodSupportScreenState extends State<MoodSupportScreen> {
           final value = double.tryParse(match.group(1)!) ?? 0;
           final stat = match.group(2)!.toUpperCase();
           avatarStore.setStat(stat, value);
-          String statName = stat == 'H' ? 'Health' : (stat == 'E' ? 'Energy' : 'Stamina');
+          String statName =
+              stat == 'H' ? 'Health' : (stat == 'E' ? 'Energy' : 'Stamina');
           devReply = "💙 Support: 🛠️ $statName set to $value%!";
         }
       }
@@ -174,29 +176,31 @@ class _MoodSupportScreenState extends State<MoodSupportScreen> {
       _loading = true;
       _controller.clear();
     });
-    
+
     try {
       await _saveMessage(text, 'user');
 
       final reply = await MoodService.askMoodCheck(text).timeout(
         const Duration(seconds: 30),
-        onTimeout: () => "I'm here for you. There seems to be a connection issue. Please try again.",
+        onTimeout: () =>
+            "I'm here for you. There seems to be a connection issue. Please try again.",
       );
 
       if (mounted) {
         final botMessage = "💙 Support: $reply";
-        
+
         setState(() {
           _messages.add(botMessage);
           _loading = false;
         });
-        
+
         await _saveMessage(botMessage, 'bot');
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _messages.add("💙 Support: I'm here for you. There was a technical issue, but I'm ready to listen.");
+          _messages.add(
+              "💙 Support: I'm here for you. There was a technical issue, but I'm ready to listen.");
           _loading = false;
         });
       }
@@ -205,19 +209,23 @@ class _MoodSupportScreenState extends State<MoodSupportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = HiwTheme.of(context);
+    final accent = Theme.of(context).primaryColor;
     return Scaffold(
-      backgroundColor: Colors.black, // Fallback
+      backgroundColor: Colors.transparent,
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0F172A), // Deep navy
-              Color(0xFF020617), // Near black
-            ],
-          ),
-        ),
+        decoration: t.isMinimal
+            ? null
+            : const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFF0F172A), // Deep navy
+                    Color(0xFF020617), // Near black
+                  ],
+                ),
+              ),
         child: SafeArea(
           child: Column(
             children: [
@@ -227,7 +235,8 @@ class _MoodSupportScreenState extends State<MoodSupportScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                      icon: Icon(Icons.arrow_back_ios_new,
+                          color: t.inkColor, size: 20),
                       onPressed: () => Navigator.pop(context),
                     ),
                     Text(
@@ -235,107 +244,116 @@ class _MoodSupportScreenState extends State<MoodSupportScreen> {
                       style: TextStyle(
                         fontSize: 22.sp,
                         fontWeight: FontWeight.bold,
-                        color: Colors.lightBlueAccent,
+                        color: accent,
                       ),
                     ),
                   ],
                 ),
               ),
-              
-              Divider(color: Colors.white10),
-          // Messages
-          Expanded(
-            child: _messages.isEmpty
-                ? Center(
-                    child: Text(
-                      "I'm here to support you. 💙\nHow are you feeling?",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white70, fontSize: 16.sp),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.all(16.r),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, i) {
-                      final msg = _messages[i];
-                      final isUser = msg.startsWith("You:");
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: 12.h), // 🆕 Spacing between bubbles
-                        child: Align(
-                          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.75,
-                            ),
-                            child: PremiumGlassCard(
-                              padding: EdgeInsets.all(12.r),
-                              borderRadius: 16,
-                              isInnerPill: isUser,
-                              child: Text(
-                                msg,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: isUser ? FontWeight.w500 : FontWeight.normal,
+
+              Divider(
+                  color: t.isMinimal ? t.cardStroke : Colors.white10),
+              // Messages
+              Expanded(
+                child: _messages.isEmpty
+                    ? Center(
+                        child: Text(
+                          "I'm here to support you. 💙\nHow are you feeling?",
+                          textAlign: TextAlign.center,
+                          style:
+                              TextStyle(color: t.mutedColor, fontSize: 16.sp),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.all(16.r),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, i) {
+                          final msg = _messages[i];
+                          final isUser = msg.startsWith("You:");
+                          return Padding(
+                            padding: EdgeInsets.only(
+                                bottom: 12.h), // 🆕 Spacing between bubbles
+                            child: Align(
+                              alignment: isUser
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width * 0.75,
+                                ),
+                                child: PremiumGlassCard(
+                                  padding: EdgeInsets.all(12.r),
+                                  borderRadius: 16,
+                                  isInnerPill: isUser,
+                                  child: Text(
+                                    msg,
+                                    style: TextStyle(
+                                      color: t.inkColor,
+                                      fontWeight: isUser
+                                          ? FontWeight.w500
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-
-          // Loader
-          if (_loading)
-            Padding(
-              padding: EdgeInsets.all(8.r),
-              child: CircularProgressIndicator(color: Colors.lightBlueAccent),
-            ),
-
-          // Input
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, 6, 16, 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: PremiumGlassCard(
-                    borderRadius: 25,
-                    padding: EdgeInsets.symmetric(horizontal: 16.w),
-                    isInnerPill: true,
-                    child: TextField(
-                      controller: _controller,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: 'Share your feelings...',
-                        hintStyle: TextStyle(color: Colors.white54),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12.h),
+                          );
+                        },
                       ),
-                      onSubmitted: (_) => _send(),
+              ),
+
+              // Loader
+              if (_loading)
+                Padding(
+                  padding: EdgeInsets.all(8.r),
+                  child: CircularProgressIndicator(
+                      color: accent),
+                ),
+
+              // Input
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: PremiumGlassCard(
+                        borderRadius: 25,
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        isInnerPill: true,
+                        child: TextField(
+                          controller: _controller,
+                          style: TextStyle(color: t.inkColor),
+                          decoration: InputDecoration(
+                            hintText: 'Share your feelings...',
+                            hintStyle: TextStyle(color: t.mutedColor),
+                            border: InputBorder.none,
+                            contentPadding:
+                                EdgeInsets.symmetric(vertical: 12.h),
+                          ),
+                          onSubmitted: (_) => _send(),
+                        ),
+                      ),
                     ),
-                  ),
+                    SizedBox(width: 12.w),
+                    PremiumGlassCard(
+                      borderRadius: 50,
+                      width: 50.w,
+                      height: 50.h,
+                      padding: EdgeInsets.zero,
+                      child: IconButton(
+                        onPressed: _send,
+                        icon: Icon(Icons.send_rounded,
+                            color: accent),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 12.w),
-                
-                PremiumGlassCard(
-                  borderRadius: 50,
-                  width: 50.w,
-                  height: 50.h,
-                  padding: EdgeInsets.zero,
-                  child: IconButton(
-                    onPressed: _send,
-                    icon: Icon(Icons.send_rounded, color: Colors.lightBlueAccent),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          
-        ],
+        ),
       ),
-     ),
-    ),
-   );
+    );
   }
 }

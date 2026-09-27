@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../widgets/premium_glass_card.dart';
+import '../../themes/hiw_theme.dart';
 
 class CyberMacroArcs extends StatefulWidget {
   final double calories;
@@ -33,7 +34,8 @@ class CyberMacroArcs extends StatefulWidget {
   State<CyberMacroArcs> createState() => _CyberMacroArcsState();
 }
 
-class _CyberMacroArcsState extends State<CyberMacroArcs> with SingleTickerProviderStateMixin {
+class _CyberMacroArcsState extends State<CyberMacroArcs>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _progressAnim;
 
@@ -44,7 +46,8 @@ class _CyberMacroArcsState extends State<CyberMacroArcs> with SingleTickerProvid
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-    _progressAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic);
+    _progressAnim =
+        CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic);
     _animController.forward();
   }
 
@@ -67,6 +70,11 @@ class _CyberMacroArcsState extends State<CyberMacroArcs> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final t = HiwTheme.of(context);
+    final accent = Theme.of(context).primaryColor;
+    final trackColor = t.isMinimal
+        ? Colors.black.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.06);
     return GestureDetector(
       onTap: widget.onTap,
       child: PremiumGlassCard(
@@ -82,11 +90,14 @@ class _CyberMacroArcsState extends State<CyberMacroArcs> with SingleTickerProvid
                     Container(
                       width: 8.w,
                       height: 8.h,
-                      decoration: const BoxDecoration(
-                        color: Colors.tealAccent,
+                      decoration: BoxDecoration(
+                        color: accent,
                         shape: BoxShape.circle,
                         boxShadow: [
-                          BoxShadow(color: Colors.tealAccent, blurRadius: 6, spreadRadius: 1),
+                          BoxShadow(
+                              color: accent,
+                              blurRadius: 6,
+                              spreadRadius: 1),
                         ],
                       ),
                     ),
@@ -97,18 +108,25 @@ class _CyberMacroArcsState extends State<CyberMacroArcs> with SingleTickerProvid
                         fontSize: 11.sp,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.2,
-                        color: Colors.tealAccent,
+                        color: accent,
                       ),
                     ),
                   ],
                 ),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                   decoration: BoxDecoration(
-                    color: (widget.healthyPercent >= 50 ? Colors.greenAccent : Colors.orangeAccent).withOpacity(0.15),
+                    color: (widget.healthyPercent >= 50
+                            ? Colors.greenAccent
+                            : Colors.orangeAccent)
+                        .withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12.r),
                     border: Border.all(
-                      color: (widget.healthyPercent >= 50 ? Colors.greenAccent : Colors.orangeAccent).withOpacity(0.4),
+                      color: (widget.healthyPercent >= 50
+                              ? Colors.greenAccent
+                              : Colors.orangeAccent)
+                          .withValues(alpha: 0.4),
                     ),
                   ),
                   child: Text(
@@ -116,7 +134,9 @@ class _CyberMacroArcsState extends State<CyberMacroArcs> with SingleTickerProvid
                     style: TextStyle(
                       fontSize: 10.sp,
                       fontWeight: FontWeight.bold,
-                      color: widget.healthyPercent >= 50 ? Colors.greenAccent : Colors.orangeAccent,
+                      color: widget.healthyPercent >= 50
+                          ? Colors.greenAccent
+                          : Colors.orangeAccent,
                     ),
                   ),
                 ),
@@ -137,10 +157,19 @@ class _CyberMacroArcsState extends State<CyberMacroArcs> with SingleTickerProvid
                       CustomPaint(
                         size: Size(210.w, 210.h),
                         painter: _CyberArcsPainter(
-                          calRatio: (widget.calories / widget.calGoal).clamp(0.0, 1.0) * _progressAnim.value,
-                          protRatio: (widget.protein / widget.proteinGoal).clamp(0.0, 1.0) * _progressAnim.value,
-                          carbsRatio: (widget.carbs / widget.carbsGoal).clamp(0.0, 1.0) * _progressAnim.value,
-                          fatsRatio: (widget.fats / widget.fatsGoal).clamp(0.0, 1.0) * _progressAnim.value,
+                          trackColor: trackColor,
+                          calRatio: (widget.calories / widget.calGoal)
+                                  .clamp(0.0, 1.0) *
+                              _progressAnim.value,
+                          protRatio: (widget.protein / widget.proteinGoal)
+                                  .clamp(0.0, 1.0) *
+                              _progressAnim.value,
+                          carbsRatio: (widget.carbs / widget.carbsGoal)
+                                  .clamp(0.0, 1.0) *
+                              _progressAnim.value,
+                          fatsRatio:
+                              (widget.fats / widget.fatsGoal).clamp(0.0, 1.0) *
+                                  _progressAnim.value,
                         ),
                       ),
                       Column(
@@ -151,11 +180,12 @@ class _CyberMacroArcsState extends State<CyberMacroArcs> with SingleTickerProvid
                             style: TextStyle(
                               fontSize: 32.sp,
                               fontWeight: FontWeight.w900,
-                              color: Colors.white,
+                              color: t.inkColor,
                               letterSpacing: 1.0,
                               shadows: [
                                 Shadow(
-                                  color: Colors.tealAccent.withOpacity(0.5),
+                                  color:
+                                      accent.withValues(alpha: 0.5),
                                   blurRadius: 12,
                                 ),
                               ],
@@ -166,20 +196,24 @@ class _CyberMacroArcsState extends State<CyberMacroArcs> with SingleTickerProvid
                             style: TextStyle(
                               fontSize: 9.sp,
                               fontWeight: FontWeight.w600,
-                              color: Colors.white54,
+                              color: t.mutedColor,
                               letterSpacing: 1.0,
                             ),
                           ),
                           SizedBox(height: 4.h),
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 8.w, vertical: 2.h),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.08),
+                              color: t.isMinimal
+                                  ? Colors.black.withValues(alpha: 0.05)
+                                  : Colors.white.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(8.r),
                             ),
                             child: Text(
                               "Goal: ${widget.calGoal.toInt()} kcal",
-                              style: TextStyle(fontSize: 10.sp, color: Colors.tealAccent),
+                              style: TextStyle(
+                                  fontSize: 10.sp, color: accent),
                             ),
                           ),
                         ],
@@ -227,9 +261,9 @@ class _CyberMacroArcsState extends State<CyberMacroArcs> with SingleTickerProvid
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14.r),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -248,7 +282,7 @@ class _CyberMacroArcsState extends State<CyberMacroArcs> with SingleTickerProvid
             style: TextStyle(
               fontSize: 14.sp,
               fontWeight: FontWeight.w800,
-              color: Colors.white,
+              color: HiwTheme.of(context).inkColor,
             ),
           ),
         ],
@@ -262,34 +296,48 @@ class _CyberArcsPainter extends CustomPainter {
   final double protRatio;
   final double carbsRatio;
   final double fatsRatio;
+  final Color trackColor;
 
   _CyberArcsPainter({
     required this.calRatio,
     required this.protRatio,
     required this.carbsRatio,
     required this.fatsRatio,
+    required this.trackColor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     const startAngle = -pi / 2;
-    final sweepFull = 2 * pi;
+    const sweepFull = 2 * pi;
 
     // Track 1: Outer Calorie Arc (Cyan/Emerald)
-    _drawArcTrack(canvas, center, radius: 95.r, strokeWidth: 10.r, ratio: calRatio,
+    _drawArcTrack(canvas, center,
+        radius: 95.r,
+        strokeWidth: 10.r,
+        ratio: calRatio,
         colors: [const Color(0xFF00F5D4), const Color(0xFF00BBF9)]);
 
     // Track 2: Protein Arc (Neon Purple)
-    _drawArcTrack(canvas, center, radius: 78.r, strokeWidth: 8.r, ratio: protRatio,
+    _drawArcTrack(canvas, center,
+        radius: 78.r,
+        strokeWidth: 8.r,
+        ratio: protRatio,
         colors: [const Color(0xFF7B2CBF), const Color(0xFF9D4EDD)]);
 
     // Track 3: Carbs Arc (Amber/Yellow)
-    _drawArcTrack(canvas, center, radius: 63.r, strokeWidth: 7.r, ratio: carbsRatio,
+    _drawArcTrack(canvas, center,
+        radius: 63.r,
+        strokeWidth: 7.r,
+        ratio: carbsRatio,
         colors: [const Color(0xFFFFB703), const Color(0xFFFB8500)]);
 
     // Track 4: Fats Arc (Pink/Rose)
-    _drawArcTrack(canvas, center, radius: 50.r, strokeWidth: 6.r, ratio: fatsRatio,
+    _drawArcTrack(canvas, center,
+        radius: 50.r,
+        strokeWidth: 6.r,
+        ratio: fatsRatio,
         colors: [const Color(0xFFFF007F), const Color(0xFFFF5400)]);
   }
 
@@ -302,7 +350,7 @@ class _CyberArcsPainter extends CustomPainter {
     required List<Color> colors,
   }) {
     final bgPaint = Paint()
-      ..color = Colors.white.withOpacity(0.06)
+      ..color = trackColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
 
@@ -318,7 +366,7 @@ class _CyberArcsPainter extends CustomPainter {
         colors: colors,
         startAngle: 0,
         endAngle: 2 * pi,
-        transform: GradientRotation(-pi / 2),
+        transform: const GradientRotation(-pi / 2),
       ).createShader(rect)
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -332,6 +380,7 @@ class _CyberArcsPainter extends CustomPainter {
     return oldDelegate.calRatio != calRatio ||
         oldDelegate.protRatio != protRatio ||
         oldDelegate.carbsRatio != carbsRatio ||
-        oldDelegate.fatsRatio != fatsRatio;
+        oldDelegate.fatsRatio != fatsRatio ||
+        oldDelegate.trackColor != trackColor;
   }
 }

@@ -10,6 +10,10 @@ class EventManager {
     switch (theme) {
       case 'plain':
         return PlainBackground(child: child);
+      case 'greezy':
+        return GreezyBackground(child: child);
+      case 'customize':
+        return CustomBackground(child: child);
       case 'christmas':
         return ChristmasBackground(child: child);
       case 'sankranti':
@@ -17,6 +21,44 @@ class EventManager {
       default:
         return DefaultBackground(child: child);
     }
+  }
+}
+
+/// Solid user-picked background for the Customize theme (no animation,
+// no gradient — the palette test surface stays pure).
+class CustomBackground extends StatelessWidget {
+  final Widget child;
+  const CustomBackground({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: child,
+    );
+  }
+}
+
+/// Warm espresso backdrop with a faint gold glow up top (Greezy theme).
+class GreezyBackground extends StatelessWidget {
+  final Widget child;
+  const GreezyBackground({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF241B12),
+            Color(0xFF161210),
+          ],
+        ),
+      ),
+      child: child,
+    );
   }
 }
 
@@ -28,7 +70,7 @@ class DefaultBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     final hour = DateTime.now().hour;
     final tm = ThemeManager(); // Singleton
-    
+
     // 🎨 DEFINE BASE GRADIENTS
     List<Color> baseColors;
     Widget? animation;
@@ -36,19 +78,19 @@ class DefaultBackground extends StatelessWidget {
     if (hour >= 5 && hour < 12) {
       // Morning
       baseColors = [const Color(0xFFB3E5FC), const Color(0xFFE1F5FE)];
-      animation = MorningWind(key: const ValueKey('morning'));
+      animation = const MorningWind(key: ValueKey('morning'));
     } else if (hour >= 12 && hour < 17) {
       // Afternoon
       baseColors = [const Color(0xFFFFF9C4), const Color(0xFFFFECB3)];
-      animation = AfternoonSun(key: const ValueKey('afternoon'));
+      animation = const AfternoonSun(key: ValueKey('afternoon'));
     } else if (hour >= 17 && hour < 20) {
       // Evening
       baseColors = [const Color(0xFFFF8A65), const Color(0xFFBF360C)];
-      animation = EveningSunset(key: const ValueKey('evening'));
+      animation = const EveningSunset(key: ValueKey('evening'));
     } else {
       // Night
       baseColors = [const Color(0xFF0F172A), const Color(0xFF020617)];
-      animation = NightStars(key: const ValueKey('night'));
+      animation = const NightStars(key: ValueKey('night'));
     }
 
     // 🎨 APPLY OVERRIDES IF PRESENT
@@ -57,7 +99,10 @@ class DefaultBackground extends StatelessWidget {
     if (tm.backgroundColorOverride != null) {
       final c = tm.backgroundColorOverride!;
       // Create a subtle gradient from the single chosen color
-      final c2 = HSLColor.fromColor(c).withLightness((HSLColor.fromColor(c).lightness - 0.1).clamp(0.0, 1.0)).toColor();
+      final c2 = HSLColor.fromColor(c)
+          .withLightness(
+              (HSLColor.fromColor(c).lightness - 0.1).clamp(0.0, 1.0))
+          .toColor();
       finalColors = [c, c2];
     }
 
@@ -73,15 +118,13 @@ class DefaultBackground extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          if (animation != null) 
-            AnimatedSwitcher(
-              duration: const Duration(seconds: 2),
-              child: animation,
-            ),
+          AnimatedSwitcher(
+            duration: const Duration(seconds: 2),
+            child: animation,
+          ),
           child,
         ],
       ),
     );
   }
 }
-

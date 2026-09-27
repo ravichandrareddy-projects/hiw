@@ -10,7 +10,7 @@ class MoodCheckScheduler {
   MoodCheckScheduler._internal();
 
   Timer? _timer;
-  Function(BuildContext)? _onMoodCheckTriggered;
+  VoidCallback? _onMoodCheckTriggered;
 
   // Mood check time windows (hour of day)
   static const List<int> _checkHours = [
@@ -21,7 +21,7 @@ class MoodCheckScheduler {
   ];
 
   /// Initialize the scheduler with callback
-  void init(Function(BuildContext) onMoodCheckTriggered) {
+  void init([VoidCallback? onMoodCheckTriggered]) {
     _onMoodCheckTriggered = onMoodCheckTriggered;
     _startScheduler();
   }
@@ -72,9 +72,8 @@ class MoodCheckScheduler {
     await prefs.setStringList('today_mood_checks', completedChecks);
     
     // Trigger callback if set
-    // Note: This requires a BuildContext, which should be provided by the app
-    // The actual overlay display will be handled by the main app
     print('🕐 Mood check triggered for hour: $checkHour');
+    _onMoodCheckTriggered?.call();
   }
 
   /// Manually trigger a mood check (for testing)

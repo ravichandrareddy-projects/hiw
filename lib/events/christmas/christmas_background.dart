@@ -11,7 +11,7 @@ class ChristmasBackground extends StatelessWidget {
       children: [
         // 🌌 WINTER NIGHT GRADIENT
         Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -30,13 +30,13 @@ class ChristmasBackground extends StatelessWidget {
             'assets/christmas/trees.png',
             fit: BoxFit.cover,
             alignment: Alignment.bottomCenter,
-            color: Colors.black.withOpacity(0.35),
+            color: Colors.black.withValues(alpha: 0.35),
             colorBlendMode: BlendMode.darken,
           ),
         ),
 
         // ❄️ BACK SNOW (IGNORE TOUCH)
-        Positioned.fill(
+        const Positioned.fill(
           child: IgnorePointer(
             child: FallingSnow(flakes: 30),
           ),
@@ -46,7 +46,7 @@ class ChristmasBackground extends StatelessWidget {
         child,
 
         // ❄️ FRONT SNOW (IGNORE TOUCH — FIXES BUTTON)
-        Positioned.fill(
+        const Positioned.fill(
           child: IgnorePointer(
             child: FallingSnow(flakes: 25),
           ),
