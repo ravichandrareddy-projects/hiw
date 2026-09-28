@@ -44,6 +44,44 @@ void main() {
     expect(heavy.protein, closeTo(60.0, 0.2));
   });
 
+  test('Combo plate combines per-food portions', () async {
+    final db = FoodNutritionDatabase();
+    final dosa = db.records.firstWhere((r) => r.name == 'Pesarattu');
+    final biryani =
+        db.records.firstWhere((r) => r.name == 'Chicken Biryani');
+    final r = FoodRecognitionResult(
+      canonicalFoodId: 'combo',
+      displayName: 'Pesarattu',
+      confidence: 0.9,
+      status: FoodMatchStatus.matched,
+      source: FoodSource.aiCamera,
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fats: 0,
+      fiber: 0,
+      servingLabel: 'plate',
+      servingWeightG: 100,
+      quantity: 1.0,
+      mealType: MealType.lunch,
+      components: [
+        FoodRecognitionResult.fromRecord(dosa, quantity: 1.0),
+        FoodRecognitionResult.fromRecord(biryani, quantity: 0.5),
+      ],
+    );
+    expect(r.isCombo, true);
+    // 165 + 488/2 = 409
+    final total = r.components.fold(0, (a, e) => a + e.calories);
+    expect(total, 165 + 244);
+    final items = r.toFoodItems();
+    expect(items.length, 2);
+    expect(items[1].calories, 244);
+    // single still returns one item
+    final single = FoodRecognitionResult.fromRecord(dosa);
+    expect(single.isCombo, false);
+    expect(single.toFoodItems().length, 1);
+  });
+
   test('Low confidence threshold flags correctly', () {
     expect(0.92 >= kFoodConfidenceThreshold, true);
     expect(0.58 >= kFoodConfidenceThreshold, false);

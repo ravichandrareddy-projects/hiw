@@ -415,15 +415,10 @@ class _ScannerScreenState extends State<ScannerScreen>
         setState(() => _isAnalyzing = false);
         final t = HiwTheme.of(context);
         final msg = e.toString().replaceFirst('Exception: ', '');
-        final offline = msg.toLowerCase().contains('unreachable') ||
-            msg.toLowerCase().contains('internet') ||
-            msg.toLowerCase().contains('timeout');
-        // Photo is kept — RETRY re-runs recognition on the same shot.
+        // Photo is kept — RETRY re-runs offline recognition on same shot.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(offline
-                ? 'Network unavailable. Photo kept — tap RETRY.'
-                : 'Analysis failed: $msg'),
+            content: Text('Could not recognize — photo kept. Tap RETRY. $msg'),
             backgroundColor: t.accentColor,
             duration: const Duration(seconds: 8),
             action: _image == null
@@ -452,9 +447,12 @@ class _ScannerScreenState extends State<ScannerScreen>
     final stopwatch = Stopwatch()..start();
     RecognitionResult result;
     try {
+      // Gemini vision sees the photo and names the foods; every calorie
+      // then comes from OUR local database.
       result = await FoodRecognitionService.analyzeImage(
         shotFile,
-      ).timeout(kMaxScanDuration + const Duration(seconds: 28));
+      ).timeout(
+          kMaxScanDuration + const Duration(seconds: 90));
     } finally {
       // Anti-flicker only (500ms); result shows the moment AI returns.
       final elapsed = stopwatch.elapsed;

@@ -33,6 +33,8 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
   late int _weightG;
   late MealType _meal;
   late FoodRecognitionResult _live;
+  // Combo: one quantity per detected food sharing the plate.
+  late List<double> _comboQty;
   final Set<String> _addons = {};
   bool _isSaving = false;
   String? _savedKey;
@@ -67,10 +69,46 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
     _quantity = widget.initial.quantity.clamp(0.25, 3.0);
     _weightG = widget.initial.servingWeightG;
     _meal = widget.initial.mealType;
+    _comboQty = widget.initial.components
+        .map((e) => e.quantity.clamp(0.25, 3.0))
+        .toList();
     _live = _recalc();
   }
 
   FoodRecognitionResult _recalc() {
+    // Combo plate: recompute each food with its own portion, then combine.
+    if (widget.initial.isCombo) {
+      final updated = <FoodRecognitionResult>[];
+      for (var i = 0; i < widget.initial.components.length; i++) {
+        updated.add(widget.initial.components[i].copyWithPortion(
+          quantity: _comboQty[i],
+          mealType: _meal,
+        ));
+      }
+      rRound(double v) => double.parse(v.toStringAsFixed(1));
+      return FoodRecognitionResult(
+        canonicalFoodId: widget.initial.canonicalFoodId,
+        displayName: widget.initial.displayName,
+        confidence: widget.initial.confidence,
+        status: widget.initial.status,
+        source: widget.initial.source,
+        image: widget.initial.image,
+        imagePath: widget.initial.imagePath,
+        calories: updated.fold(0, (a, e) => a + e.calories),
+        protein: rRound(updated.fold(0.0, (a, e) => a + e.protein)),
+        carbs: rRound(updated.fold(0.0, (a, e) => a + e.carbs)),
+        fats: rRound(updated.fold(0.0, (a, e) => a + e.fats)),
+        fiber: rRound(updated.fold(0.0, (a, e) => a + e.fiber)),
+        servingLabel: widget.initial.servingLabel,
+        servingWeightG: widget.initial.servingWeightG,
+        quantity: widget.initial.quantity,
+        mealType: _meal,
+        record: widget.initial.record,
+        alternatives: widget.initial.alternatives,
+        items: widget.initial.items,
+        components: updated,
+      );
+    }
     var r = widget.initial.copyWithPortion(
       quantity: _quantity,
       weightG: _weightG,
@@ -116,6 +154,7 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
       record: r.record,
       alternatives: r.alternatives,
       items: r.items,
+      components: r.components,
     );
   }
 
@@ -384,26 +423,34 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
       if (_savedKey == key) return;
       _savedKey = key;
 
-      final food = FoodItem(
-        name: _live.displayName,
-        mealType: _live.mealType,
-        calories: _live.calories,
-        protein: _live.protein,
-        carbs: _live.carbs,
-        fats: _live.fats,
-        fiber: _live.fiber,
-      );
-      NutritionStore().addFood(food);
-      try {
-        HealthEngine().applyFood(food);
-      } catch (_) {}
-      HistoryStore().addFood(food);
+      // Combo plate → one FoodItem per food, same meal, same pipeline.
+      final foods = _live.isCombo
+          ? _live.toFoodItems()
+          : [
+              FoodItem(
+                name: _live.displayName,
+                mealType: _live.mealType,
+                calories: _live.calories,
+                protein: _live.protein,
+                carbs: _live.carbs,
+                fats: _live.fats,
+                fiber: _live.fiber,
+              )
+            ];
+      for (final food in foods) {
+        NutritionStore().addFood(food);
+        try {
+          HealthEngine().applyFood(food);
+        } catch (_) {}
+        HistoryStore().addFood(food);
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(
-                'Added to ${_live.mealLabel} • ${food.calories} kcal')),
+            content: Text(foods.length > 1
+                ? 'Added ${foods.length} items to ${_live.mealLabel} • ${_live.calories} kcal'
+                : 'Added to ${_live.mealLabel} • ${foods.first.calories} kcal')),
       );
       Navigator.of(context).pop(true);
     } finally {
@@ -475,7 +522,9 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
               ),
               SizedBox(height: 16.h),
               Text(
-                _live.displayName,
+                _live.isCombo
+                    ? '${_live.components.length} items on your plate'
+                    : _live.displayName,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: t.inkColor,
@@ -483,9 +532,38 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
                   fontSize: 22.sp,
                 ),
               ),
+              if (_live.isCombo) ...[
+                SizedBox(height: 4.h),
+                Text(
+                  _live.components.map((e) => e.displayName).join(' • '),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: t.mutedColor, fontSize: 13.sp),
+                ),
+              ],
               SizedBox(height: 8.h),
-              // Confidence / low-confidence state
-              if (_live.isLowConfidence) ...[
+              // Confidence / combo / low-confidence state
+              if (_live.isCombo) ...[
+                Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 14.w, vertical: 8.h),
+                  decoration: BoxDecoration(
+                    color: scheme.secondary.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20.r),
+                    border: Border.all(
+                        color: scheme.secondary
+                            .withValues(alpha: 0.4)),
+                  ),
+                  child: Text(
+                    'Combo plate • ${_live.calories} kcal total',
+                    style: TextStyle(
+                      color: scheme.secondary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.sp,
+                    ),
+                  ),
+                ),
+              ] else if (_live.isLowConfidence) ...[
                 Container(
                   padding: EdgeInsets.symmetric(
                       horizontal: 14.w, vertical: 8.h),
@@ -614,7 +692,9 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
                           SizedBox(width: 8.w),
                           Expanded(
                             child: Text(
-                              '${_quantity.toStringAsFixed(2)}× • $_weightG g',
+                              _live.isCombo
+                                  ? '${_live.components.length} foods • combined'
+                                  : '${_quantity.toStringAsFixed(2)}× • $_weightG g',
                               style: TextStyle(
                                   color: t.inkColor,
                                   fontWeight: FontWeight.w600,
@@ -628,64 +708,166 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
                 ],
               ),
               SizedBox(height: 12.h),
-              // ── PORTION ROW ──
-              HiwCard(
-                padding: EdgeInsets.symmetric(
-                    horizontal: 14.w, vertical: 6.h),
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.soup_kitchen_outlined,
-                      color: t.mutedColor),
-                  title: Text('Portion Size',
-                      style: TextStyle(
-                          color: t.inkColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14.sp)),
-                  subtitle: Text(
-                    '${_quantity.toStringAsFixed(2)} bowl ($_weightG g)',
-                    style: TextStyle(
-                        color: t.mutedColor, fontSize: 13.sp),
-                  ),
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: t.mutedColor),
-                  onTap: _openPortionSheet,
-                ),
-              ),
-              SizedBox(height: 10.h),
-              // ── ADD-ONS ROW ──
-              HiwCard(
-                padding: EdgeInsets.symmetric(
-                    horizontal: 14.w, vertical: 6.h),
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    padding: EdgeInsets.all(8.r),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: t.cardStroke),
+              if (_live.isCombo) ...[
+                // ── COMBO: per-food portions, combined totals ──
+                ..._live.components.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final comp = entry.value;
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: 10.h),
+                    child: HiwCard(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 14.w, vertical: 10.h),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(comp.displayName,
+                                    style: TextStyle(
+                                        color: t.inkColor,
+                                        fontWeight:
+                                            FontWeight.w700,
+                                        fontSize: 14.sp)),
+                                SizedBox(height: 2.h),
+                                Text(
+                                  '${comp.servingLabel} • ${comp.calories} kcal',
+                                  style: TextStyle(
+                                      color: t.mutedColor,
+                                      fontSize: 12.sp),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _stepBtn(Icons.remove_rounded, () {
+                            if (_comboQty[i] > 0.25) {
+                              setState(() {
+                                _comboQty[i] =
+                                    double.parse(
+                                        (_comboQty[i] - 0.25)
+                                            .toStringAsFixed(2));
+                                _live = _recalc();
+                              });
+                            }
+                          }, t),
+                          Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 10.w),
+                            child: Text(
+                              '${_comboQty[i].toStringAsFixed(2)}×',
+                              style: TextStyle(
+                                  color: t.inkColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14.sp),
+                            ),
+                          ),
+                          _stepBtn(Icons.add_rounded, () {
+                            if (_comboQty[i] < 3.0) {
+                              setState(() {
+                                _comboQty[i] =
+                                    double.parse(
+                                        (_comboQty[i] + 0.25)
+                                            .toStringAsFixed(2));
+                                _live = _recalc();
+                              });
+                            }
+                          }, t),
+                        ],
+                      ),
                     ),
-                    child: Icon(Icons.add_rounded,
-                        color: t.inkColor, size: 18.sp),
-                  ),
-                  title: Text('Add-ons (Optional)',
+                  );
+                }),
+                // Foods seen but not in the database are listed, not logged.
+                ...widget.initial.items
+                    .where((e) => e.isEdible && e.record == null)
+                    .map((e) => Padding(
+                          padding: EdgeInsets.only(bottom: 10.h),
+                          child: HiwCard(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 14.w,
+                                vertical: 12.h),
+                            child: Row(
+                              children: [
+                                Icon(
+                                    Icons.help_outline_rounded,
+                                    color: t.mutedColor,
+                                    size: 20.sp),
+                                SizedBox(width: 10.w),
+                                Expanded(
+                                  child: Text(
+                                    '${e.name} — not in database, skipped',
+                                    style: TextStyle(
+                                        color: t.mutedColor,
+                                        fontSize: 13.sp),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )),
+              ] else ...[
+                // ── PORTION ROW ──
+                HiwCard(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 14.w, vertical: 6.h),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.soup_kitchen_outlined,
+                        color: t.mutedColor),
+                    title: Text('Portion Size',
+                        style: TextStyle(
+                            color: t.inkColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14.sp)),
+                    subtitle: Text(
+                      '${_quantity.toStringAsFixed(2)} bowl ($_weightG g)',
                       style: TextStyle(
-                          color: t.inkColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14.sp)),
-                  subtitle: Text(
-                    _addons.isEmpty
-                        ? 'Raita, Extra Chicken, Ghee...'
-                        : _addons.join(', '),
-                    style: TextStyle(
-                        color: t.mutedColor, fontSize: 13.sp),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                          color: t.mutedColor, fontSize: 13.sp),
+                    ),
+                    trailing: Icon(Icons.chevron_right_rounded,
+                        color: t.mutedColor),
+                    onTap: _openPortionSheet,
                   ),
-                  trailing: Icon(Icons.chevron_right_rounded,
-                      color: t.mutedColor),
-                  onTap: _openAddonsSheet,
                 ),
-              ),
+                SizedBox(height: 10.h),
+                // ── ADD-ONS ROW ──
+                HiwCard(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 14.w, vertical: 6.h),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: EdgeInsets.all(8.r),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border:
+                            Border.all(color: t.cardStroke),
+                      ),
+                      child: Icon(Icons.add_rounded,
+                          color: t.inkColor, size: 18.sp),
+                    ),
+                    title: Text('Add-ons (Optional)',
+                        style: TextStyle(
+                            color: t.inkColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14.sp)),
+                    subtitle: Text(
+                      _addons.isEmpty
+                          ? 'Raita, Extra Chicken, Ghee...'
+                          : _addons.join(', '),
+                      style: TextStyle(
+                          color: t.mutedColor, fontSize: 13.sp),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: Icon(Icons.chevron_right_rounded,
+                        color: t.mutedColor),
+                    onTap: _openAddonsSheet,
+                  ),
+                ),
+              ],
               SizedBox(height: 18.h),
               // ── PRIMARY CTA (dynamic meal, double-tap safe) ──
               SizedBox(
@@ -735,7 +917,9 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
                               const Icon(Icons.add_rounded),
                               SizedBox(width: 8.w),
                               Text(
-                                'Add to ${_live.mealLabel}',
+                                _live.isCombo
+                                    ? 'Add ${_live.components.length} items to ${_live.mealLabel}'
+                                    : 'Add to ${_live.mealLabel}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16.sp,

@@ -52,7 +52,10 @@ class FoodRecognitionResult {
   MealType mealType;
   final FoodNutritionRecord? record;
   final List<FoodCandidate> alternatives;
-  final List<ScannedItem> items; // multi-food future: Food A/B/C
+  final List<ScannedItem> items;
+  // Multi-food: one entry per distinct edible item with known nutrition
+  // (Food A, Food B, Food C), each with its own portion. Empty = single.
+  final List<FoodRecognitionResult> components;
 
   FoodRecognitionResult({
     required this.canonicalFoodId,
@@ -74,11 +77,14 @@ class FoodRecognitionResult {
     this.record,
     this.alternatives = const [],
     this.items = const [],
+    this.components = const [],
   });
 
   bool get isLowConfidence =>
       status == FoodMatchStatus.lowConfidence ||
       confidence < kFoodConfidenceThreshold;
+
+  bool get isCombo => components.length > 1;
 
   /// Build from camera AI RecognitionResult.
   factory FoodRecognitionResult.fromRecognition(
@@ -109,6 +115,32 @@ class FoodRecognitionResult {
     }
     final id = rec?.name.toLowerCase().replaceAll(RegExp(r'\s+'), '_') ??
         r.itemName.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+
+    // Multi-food: one component per distinct edible item with DB nutrition.
+    final comps = <FoodRecognitionResult>[];
+    for (final item in r.items) {
+      if (!item.isEdible || item.record == null) continue;
+      final q = item.quantity <= 0 ? 1.0 : item.quantity.clamp(0.25, 3.0);
+      comps.add(FoodRecognitionResult.fromRecord(
+        item.record!,
+        quantity: q,
+        mealType: mealType,
+        source: FoodSource.aiCamera,
+      ));
+    }
+    // Top-level nutrition = combined totals when several foods share a plate.
+    var cal = scaled?.calories ?? 0;
+    var p = scaled?.protein ?? 0.0;
+    var c = scaled?.carbs ?? 0.0;
+    var f = scaled?.fats ?? 0.0;
+    var fib = scaled?.fiber ?? 0.0;
+    if (comps.length > 1) {
+      cal = comps.fold(0, (a, e) => a + e.calories);
+      p = comps.fold(0.0, (a, e) => a + e.protein);
+      c = comps.fold(0.0, (a, e) => a + e.carbs);
+      f = comps.fold(0.0, (a, e) => a + e.fats);
+      fib = comps.fold(0.0, (a, e) => a + e.fiber);
+    }
     return FoodRecognitionResult(
       canonicalFoodId: id,
       displayName: rec?.name ?? r.itemName,
@@ -117,11 +149,11 @@ class FoodRecognitionResult {
       source: FoodSource.aiCamera,
       image: image,
       imagePath: imagePath,
-      calories: scaled?.calories ?? 0,
-      protein: scaled?.protein ?? 0,
-      carbs: scaled?.carbs ?? 0,
-      fats: scaled?.fats ?? 0,
-      fiber: scaled?.fiber ?? 0,
+      calories: cal,
+      protein: double.parse(p.toStringAsFixed(1)),
+      carbs: double.parse(c.toStringAsFixed(1)),
+      fats: double.parse(f.toStringAsFixed(1)),
+      fiber: double.parse(fib.toStringAsFixed(1)),
       servingLabel: rec?.servingUnit ?? r.servingUnit ?? '1 serving',
       servingWeightG: rec?.servingWeightG ?? 150,
       quantity: r.estimatedQuantity,
@@ -129,6 +161,7 @@ class FoodRecognitionResult {
       record: rec,
       alternatives: alternatives,
       items: r.items,
+      components: comps,
     );
   }
 
@@ -213,6 +246,7 @@ class FoodRecognitionResult {
       record: record,
       alternatives: alternatives,
       items: items,
+      components: components,
     );
   }
 
@@ -227,6 +261,12 @@ class FoodRecognitionResult {
       fats: fats,
       fiber: fiber,
     );
+  }
+
+  /// Combo save: one FoodItem per component (each keeps its own portion).
+  List<FoodItem> toFoodItems() {
+    if (!isCombo) return [toFoodItem()];
+    return components.map((e) => e.toFoodItem()).toList();
   }
 
   String get mealLabel {

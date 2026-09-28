@@ -38,9 +38,6 @@ dependencies:
   flutter_colorpicker: ^1.1.0
   flutter_screenutil: 5.9.0
   camera_android_camerax: ^0.7.5
-
-
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
