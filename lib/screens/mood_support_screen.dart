@@ -7,6 +7,7 @@ import '../themes/hiw_theme.dart';
 import '../hive/chat_hive_model.dart';
 import '../avatar/avatar_store.dart';
 import '../core/history_store.dart';
+import '../core/tester_gate.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Also likely needed for commands
 
 /// Dedicated Mood Support Chatbot - Unlimited, empathetic AI support
@@ -123,8 +124,15 @@ class _MoodSupportScreenState extends State<MoodSupportScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty || _loading) return;
 
-    // 🛠️ DEV COMMANDS (SAFE & WORKING)
+    // 🛠️ DEV COMMANDS (tester-only — see launch_safety_audit.txt)
     if (text.startsWith('/')) {
+      if (!(await TesterGate.isTesterMode())) {
+        setState(() {
+          _messages.add("💙 Support: Unknown command.");
+        });
+        _controller.clear();
+        return;
+      }
       final avatarStore = AvatarStore();
       String? devReply;
 

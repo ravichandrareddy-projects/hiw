@@ -4,6 +4,7 @@ import '../avatar/avatar_store.dart'; // 🔔
 import 'profile_screen.dart';
 import 'update_log_screen.dart'; // 🆕 Full screen log
 import '../widgets/dev_theme_tools.dart';
+import '../core/tester_gate.dart';
 import '../themes/hiw_theme.dart';
 
 enum AvatarStage { unhealthy, normal, healthy, veryHealthy }
@@ -169,35 +170,46 @@ class AvatarScreen extends StatelessWidget {
 
                       SizedBox(height: 20.h),
 
-                      // 🚀 UPDATE LOG BUTTON
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const UpdateLogScreen()),
+                      // 🚀 UPDATE LOG BUTTON (tester-only — audit §4)
+                      FutureBuilder<bool>(
+                        future: TesterGate.isTesterMode(),
+                        builder: (ctx, snap) {
+                          if (snap.data != true) {
+                            return const SizedBox.shrink();
+                          }
+                          return ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const UpdateLogScreen()),
+                              );
+                            },
+                            icon: const Icon(Icons.history_edu,
+                                color: Colors.white),
+                            label: const Text(
+                              'View Update Log',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 14.h),
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white,
+                              elevation: 8,
+                              shadowColor: Colors.black
+                                  .withValues(alpha: 0.5),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(15.r),
+                              ),
+                            ),
                           );
                         },
-                        icon:
-                            const Icon(Icons.history_edu, color: Colors.white),
-                        label: const Text(
-                          'View Update Log',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 14.h),
-                          backgroundColor: Colors.black,
-                          foregroundColor: Colors.white,
-                          elevation: 8,
-                          shadowColor: Colors.black.withValues(alpha: 0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15.r),
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -221,14 +233,23 @@ class AvatarScreen extends StatelessWidget {
               ),
             ),
 
-            // 🎨 DEV TOOLS BUTTON (Top Left)
+            // 🎨 DEV TOOLS BUTTON (Top Left, tester-only — audit §4)
             Positioned(
               top: 10,
               left: 10,
-              child: IconButton(
-                icon: Icon(Icons.palette,
-                    color: Theme.of(context).iconTheme.color, size: 28),
-                onPressed: () => showDevThemeTools(context),
+              child: FutureBuilder<bool>(
+                future: TesterGate.isTesterMode(),
+                builder: (ctx, snap) {
+                  if (snap.data != true) {
+                    return const SizedBox.shrink();
+                  }
+                  return IconButton(
+                    icon: Icon(Icons.palette,
+                        color: Theme.of(context).iconTheme.color,
+                        size: 28),
+                    onPressed: () => showDevThemeTools(context),
+                  );
+                },
               ),
             ),
           ],

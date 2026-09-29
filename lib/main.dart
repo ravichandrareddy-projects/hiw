@@ -29,6 +29,7 @@ import 'hive/hive_init.dart';
 import 'core/nutrition_store.dart';
 import 'avatar/avatar_store.dart';
 import 'core/app_state.dart';
+import 'core/tester_gate.dart';
 import 'core/food_addons_config.dart'; // 🆕
 
 // services
@@ -266,6 +267,8 @@ class _MainShellState extends State<MainShell> {
   }
 
   Future<void> _checkUpdateLogPrompt() async {
+    // Tester-only prompt (public release never sees it — audit §4).
+    if (!(await TesterGate.isTesterMode())) return;
     final prefs = await SharedPreferences.getInstance();
     // Use a versioned key so we can prompt again for major updates if needed
     final hasSeen = prefs.getBool('has_seen_update_log_prompt_v3') ?? false;

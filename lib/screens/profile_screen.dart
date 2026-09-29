@@ -12,6 +12,7 @@ import 'trends_screen.dart';
 import '../core/subscription/entitlement.dart';
 import '../core/subscription/plan.dart';
 import '../core/subscription/coupon_service.dart';
+import '../core/tester_gate.dart';
 import '../services/analytics_service.dart';
 import '../services/notification_service.dart';
 import '../main.dart';
@@ -353,16 +354,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           SizedBox(height: 12.h),
 
-                          // 💙 TEST MOOD CHECK BUTTON
-                          _buildTile(
-                            context,
-                            icon: Icons.psychology,
-                            color: Colors.lightBlueAccent,
-                            title: 'Test Mood Check',
-                            subtitle:
-                                'Trigger mood check overlay (for testing)',
-                            isDark: isDark,
-                            onTap: () => _showMoodCheckOverlay(context),
+                          // 💙 TEST MOOD CHECK BUTTON (tester-only — audit §4)
+                          FutureBuilder<bool>(
+                            future: TesterGate.isTesterMode(),
+                            builder: (ctx, snap) {
+                              if (snap.data != true) {
+                                return const SizedBox.shrink();
+                              }
+                              return Column(
+                                children: [
+                                  _buildTile(
+                                    context,
+                                    icon: Icons.psychology,
+                                    color: Colors.lightBlueAccent,
+                                    title: 'Test Mood Check',
+                                    subtitle:
+                                        'Trigger mood check overlay (for testing)',
+                                    isDark: isDark,
+                                    onTap: () =>
+                                        _showMoodCheckOverlay(context),
+                                  ),
+                                  SizedBox(height: 12.h),
+                                ],
+                              );
+                            },
                           ),
 
                           SizedBox(height: 32.h),

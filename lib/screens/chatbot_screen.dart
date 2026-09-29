@@ -11,6 +11,7 @@ import '../core/food_item.dart';
 import '../core/subscription/entitlement.dart';
 import '../core/subscription/plan.dart';
 import '../core/subscription/usage_store.dart';
+import '../core/tester_gate.dart';
 import '../services/analytics_service.dart';
 import '../widgets/limit_sheet.dart';
 import '../avatar/avatar_store.dart';
@@ -163,8 +164,14 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     final text = _controller.text.trim();
     if (text.isEmpty || _loading) return;
 
-    // 🛠️ DEV COMMANDS (SAFE & WORKING & BYPASS LIMITS)
+    // 🛠️ DEV COMMANDS (tester-only; public users get Unknown command,
+    // no quota burned — see launch_safety_audit.txt)
     if (text.startsWith('/')) {
+      if (!(await TesterGate.isTesterMode())) {
+        setState(() => _messages.add('Foodity: Unknown command.'));
+        _controller.clear();
+        return;
+      }
       final avatarStore = AvatarStore();
       String? devReply;
 

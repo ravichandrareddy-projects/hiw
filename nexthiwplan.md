@@ -45,13 +45,16 @@ Upgrade HIW into a personalized, freemium health app while preserving existing a
 - `flutter analyze` clean on new files; pre-existing warnings elsewhere untouched.
 
 ## 3. Active / unfinished (do next)
-1. P2 wiring: consume quotas after successful scan/chat (`UsageStore.consumeScan/consumeChat` with idem keys); gate `customMacros/fasting/mealPlans/trends/gaps/export` via `EntitlementStore.canUse` + `showLimitSheet`; combo>3 truncation flow already in scanner — verify end-to-end.
-2. Coupon system: `assets/pro_coupons.txt` (`HIW-PRO-TEST-001`), `coupon_service.dart`, Profile redeem UI, 30-day Pro grant, tests.
-3. Analytics: needs `google-services.json` from user; add `firebase_core` + `firebase_analytics`, event map (counts only), opt-out toggle.
-4. Verify: `flutter analyze`, `flutter test`, `flutter build apk --debug`, install, device matrix (fresh onboarding → targets on Home → scan → quotas → paywall → restart persistence).
+1. ~~P2 wiring~~ DONE (committed 5a6ea7a, mobile-verified): unified chat quota + limit sheets, scan burn-after-success, in-screen Pro guards, mealplan diet fix, paywall trial/buy/restore, coupons, analytics stub + opt-out. 33 tests green, debug APK built.
+2. ~~Coupon system~~ DONE (same commit).
+3. ~~Analytics stub~~ DONE (counts-only + opt-out; Firebase needs `google-services.json` from user — TODO in `analytics_service.dart`).
+4. ~~Verify~~ DONE for P2 (analyze/test/build/device matrix passed per user).
+5. P3 next: (a) push blocked — repo `hiw-health-wellness` returns "not found" despite `gh` login; user must create it or grant access, then push 2 local commits; (b) Firebase full wiring when json lands; (c) Supabase auth swap at the very end; (d) Play Console SKUs (`hiw_pro_monthly/annual`) + review.
 
 ## 4. Blockers / risks
-- Git push fails: `remote: Repository not found` for `https://github.com/ravichandrareddy2712-bit/hiw-health-wellness.git`; machine not logged into `gh`. Local commits safe; do NOT assume pushed.
+- Git push STILL fails (2026-09-29): `remote: Repository not found` for `https://github.com/ravichandrareddy2712-bit/hiw-health-wellness.git` even though `gh auth status` shows logged in. 2 local commits ahead. User must create the repo (or fix access) before push.
+- `ai_config.dart` clone risk FIXED (2026-09-29): tracked `lib/config/ai_defaults.dart` (models) + `ai_config_template.dart` (setup); ignored `ai_config.dart` now delegates to defaults. Fresh clone = copy template → builds.
+- Launch safety DONE (2026-09-29): `lib/core/tester_gate.dart` (`kDebugMode || tester-verified`); dev chat commands (Foodity + Mood Support), update-log prompt overlay, avatar Update-Log + DevThemeTools buttons, profile Test-Mood-Check tile all gated.
 - Device flaky: `ZN4223RV26` USB + wireless (`192.168.0.166:35163`, `192.168.1.170:35015`); IPs expire; keep screen awake for screenshots/taps.
 - Gemini free-tier: intermittent HTTP 503 overload + ~1 photo/min rate limit observed; key default lives in git-ignored `ai_config.dart`.
 - `ai_config.dart` is git-ignored: model switch (`gemini-3.1-flash-lite`) will NOT survive fresh clones — document or move model name to tracked config later.
