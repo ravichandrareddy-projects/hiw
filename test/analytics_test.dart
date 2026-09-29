@@ -33,4 +33,13 @@ void main() {
     await a.log('not_a_real_event');
     expect(await a.count('not_a_real_event'), 0);
   });
+
+  test('init is safe without google-services.json', () async {
+    final a = AnalyticsService();
+    await a.init();
+    expect(a.firebaseReady, false);
+    await a.setOptOut(false);
+    await a.log('chat_sent');
+    expect(await a.count('chat_sent'), 1);
+  });
 }

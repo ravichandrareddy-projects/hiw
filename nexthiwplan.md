@@ -49,7 +49,7 @@ Upgrade HIW into a personalized, freemium health app while preserving existing a
 2. ~~Coupon system~~ DONE (same commit).
 3. ~~Analytics stub~~ DONE (counts-only + opt-out; Firebase needs `google-services.json` from user — TODO in `analytics_service.dart`).
 4. ~~Verify~~ DONE for P2 (analyze/test/build/device matrix passed per user).
-5. P3 next: (a) push blocked — repo `hiw-health-wellness` returns "not found" despite `gh` login; user must create it or grant access, then push 2 local commits; (b) Firebase full wiring when json lands; (c) Supabase auth swap at the very end; (d) Play Console SKUs (`hiw_pro_monthly/annual`) + review.
+5. P3 next: (a) push blocked — repo `hiw-health-wellness` returns "not found" despite `gh` login; user must create it or grant access, then push local commits; (b) ~~Firebase full wiring~~ DONE (deps + guarded init + mirror; works without json, mirrors when configured); (c) ~~Supabase swap~~ DONE (real provider behind dart-defines, mock default); (d) ~~Barcode~~ DONE (OFF lookup → DB-strict match → text-search, quota-gated); (e) Play Console SKUs (`hiw_pro_monthly/annual`) + review remain external.
 
 ## 4. Blockers / risks
 - Git push STILL fails (2026-09-29): `remote: Repository not found` for `https://github.com/ravichandrareddy2712-bit/hiw-health-wellness.git` even though `gh auth status` shows logged in. 2 local commits ahead. User must create the repo (or fix access) before push.

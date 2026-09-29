@@ -21,6 +21,7 @@ import '../core/subscription/entitlement.dart';
 import '../core/subscription/plan.dart';
 import '../core/subscription/usage_store.dart';
 import '../services/analytics_service.dart';
+import '../services/barcode_service.dart';
 import '../themes/hiw_theme.dart';
 import '../widgets/limit_sheet.dart';
 import '../widgets/detection_result_modal.dart';
@@ -352,8 +353,8 @@ class _ScannerScreenState extends State<ScannerScreen>
       return;
     }
     if (_isBarcode) {
-      // Barcode quota enforced (lookup flow lands here when ready).
-      // No consume yet — nothing successful to count.
+      // Barcode quota enforced; consume happens only on a successful
+      // lookup that reaches the (DB-strict) result flow below.
       if (!(await EntitlementStore.current()).isPro &&
           UsageStore.barcodeLeft() <= 0) {
         if (!mounted) return;
@@ -367,14 +368,7 @@ class _ScannerScreenState extends State<ScannerScreen>
         return;
       }
       if (!mounted) return;
-      final t = HiwTheme.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-              'Barcode mode kept — Food scan runs in Food tab.'),
-          backgroundColor: t.accentColor,
-        ),
-      );
+      await _runBarcodeFlow();
       return;
     }
 
@@ -842,6 +836,159 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
+  /// Barcode flow: manual code entry → Open Food Facts name →
+  /// local-DB match → text-search screen (DB-strict nutrition).
+  /// Quota burns only when the result screen is reached.
+  Future<void> _runBarcodeFlow() async {
+    final t = HiwTheme.of(context);
+    final ctrl = TextEditingController();
+    final code = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => ClipRRect(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+        child: BackdropFilter(
+          filter:
+              ImageFilter.blur(sigmaX: t.blurSigma, sigmaY: t.blurSigma),
+          child: Container(
+            padding: EdgeInsets.fromLTRB(
+                20.w,
+                12.h,
+                20.w,
+                28.h + MediaQuery.of(ctx).viewInsets.bottom),
+            decoration: BoxDecoration(
+              color: t.cardBackground,
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(24.r)),
+              border: Border.all(color: t.cardStroke),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44.w,
+                    height: 4.h,
+                    decoration: BoxDecoration(
+                      color: t.mutedColor.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(4.r),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 14.h),
+                Text(
+                  'Enter barcode',
+                  style: TextStyle(
+                    color: t.inkColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16.sp,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  'Digits under the bars — we match it to the HIW database.',
+                  style:
+                      TextStyle(color: t.mutedColor, fontSize: 13.sp),
+                ),
+                SizedBox(height: 12.h),
+                TextField(
+                  controller: ctrl,
+                  keyboardType: TextInputType.number,
+                  autofocus: true,
+                  style: TextStyle(color: t.inkColor),
+                  decoration: InputDecoration(
+                    hintText: 'e.g. 8901234567890',
+                    hintStyle: TextStyle(color: t.mutedColor),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      borderSide: BorderSide(color: t.cardStroke),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      borderSide: BorderSide(color: t.accentColor),
+                    ),
+                  ),
+                  onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+                ),
+                SizedBox(height: 12.h),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: t.accentColor,
+                      foregroundColor: Colors.white,
+                      padding:
+                          EdgeInsets.symmetric(vertical: 14.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14.r),
+                      ),
+                    ),
+                    onPressed: () =>
+                        Navigator.pop(ctx, ctrl.text.trim()),
+                    child: const Text('Look Up',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    ctrl.dispose();
+    if (!mounted || code == null || code.isEmpty) return;
+
+    setState(() => _isAnalyzing = true);
+    _cycleStatus();
+    BarcodeProduct? product;
+    try {
+      product = await BarcodeService.fetchProduct(code);
+    } finally {
+      if (mounted) {
+        setState(() => _isAnalyzing = false);
+      }
+      _statusTimer?.cancel();
+    }
+    if (!mounted) return;
+    if (product == null) {
+      AnalyticsService().log('barcode_miss');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+              'Barcode not found. Check the digits and try again.'),
+          backgroundColor: t.accentColor,
+        ),
+      );
+      return;
+    }
+    final match = BarcodeService.matchToDb(product);
+    if (match == null) {
+      AnalyticsService().log('barcode_miss');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              '"${product.displayName}" is not in the HIW database yet.'),
+          backgroundColor: t.accentColor,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+    UsageStore.consumeBarcode(idem: 'barcode_$code');
+    AnalyticsService().log('barcode_success');
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FoodTextSearchScreen(
+          initialMeal: _mealHint(),
+          initialQuery: product!.name,
+        ),
+      ),
+    );
+  }
+
   void _openTextMode() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -1225,7 +1372,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                   if (_isBarcode) ...[
                     SizedBox(height: 8.h),
                     Text(
-                      'Barcode mode kept — reliable packaged lookup.',
+                      'Barcode mode — enter the digits, we match the HIW database.',
                       style: TextStyle(
                           color: Colors.white70,
                           fontSize: 11.sp),

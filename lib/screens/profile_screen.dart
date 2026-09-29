@@ -14,7 +14,6 @@ import '../core/subscription/plan.dart';
 import '../core/subscription/coupon_service.dart';
 import '../core/tester_gate.dart';
 import '../services/analytics_service.dart';
-import '../services/notification_service.dart';
 import '../main.dart';
 import '../events/event_manager.dart';
 import '../core/theme_manager.dart';
@@ -34,7 +33,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _username = 'User';
   int _targetCalories = 2000;
   String? _testerCode;
-  bool _isVerified = false;
   bool _isLoading = true;
   int _splashSeconds = 5; // TEMPORARY intro-timing test value
 
@@ -48,7 +46,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final results = await Future.wait([
       AppState.getUsername(),
       AppState.getLastVerifiedCode(),
-      AppState.isTesterVerified(),
     ]);
     final splash = await AppState.getSplashSeconds();
 
@@ -56,7 +53,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _username = (results[0] as String?) ?? 'User';
         _testerCode = results[1] as String?;
-        _isVerified = (results[2] as bool?) ?? false;
         _targetCalories = NutritionStore().dailyTargetCalories;
         _splashSeconds = splash;
         _isLoading = false;
@@ -184,18 +180,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             },
                           ),
 
-                          SizedBox(height: 12.h),
-
-                          // ⏱️ INTRO TIMING (TEMPORARY test setting 1-10s)
-                          _buildTile(
-                            context,
-                            icon: Icons.timer_outlined,
-                            color: Colors.tealAccent,
-                            title: 'Intro Timing (test)',
-                            subtitle:
-                                '$_splashSeconds s — tap to try 1-10 s',
-                            isDark: isDark,
-                            onTap: () => _showIntroTiming(context),
+                          // ⏱️ INTRO TIMING (tester-only test setting 1-10s)
+                          FutureBuilder<bool>(
+                            future: TesterGate.isTesterMode(),
+                            builder: (ctx, snap) {
+                              if (snap.data != true) {
+                                return const SizedBox.shrink();
+                              }
+                              return Column(
+                                children: [
+                                  SizedBox(height: 12.h),
+                                  _buildTile(
+                                    context,
+                                    icon: Icons.timer_outlined,
+                                    color: Colors.tealAccent,
+                                    title: 'Intro Timing (test)',
+                                    subtitle:
+                                        '$_splashSeconds s — tap to try 1-10 s',
+                                    isDark: isDark,
+                                    onTap: () =>
+                                        _showIntroTiming(context),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
 
                           SizedBox(height: 12.h),

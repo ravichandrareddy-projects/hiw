@@ -1,8 +1,11 @@
 // lib/core/auth_service.dart
-// Auth abstraction: mock provider today (Supabase swap at the end).
-// UI talks ONLY to AuthService — providers are interchangeable.
+// Auth abstraction: mock provider by default; Supabase provider
+// activates when --dart-define SUPABASE_URL/ANON_KEY are supplied
+// (see backend_config.dart). UI talks ONLY to AuthService.
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+import '../config/backend_config.dart';
 
 class AuthUser {
   final String email;
@@ -107,22 +110,82 @@ class MockAuthProvider implements AuthProvider {
   }
 }
 
-/// Supabase Auth plugs in here at the end (same interface, zero UI churn).
+/// Real Supabase Auth. Active only when BackendConfig.hasSupabase;
+/// otherwise every call fails cleanly with AuthException (mock stays).
+/// Email OTP matches the existing register → OTP-screen UI flow.
 class SupabaseAuthProvider implements AuthProvider {
-  @override
-  Future<AuthUser> login(String email, String password) =>
-      throw UnimplementedError('Supabase wiring lands at the end.');
+  sb.SupabaseClient get _client {
+    if (!BackendConfig.hasSupabase) {
+      throw AuthException(
+          'Cloud login not configured on this build. Use the demo account.');
+    }
+    return sb.Supabase.instance.client;
+  }
+
+  AuthUser _toUser(String email) => AuthUser(
+        email: email.trim().toLowerCase(),
+        username: _defaultName(email),
+      );
+
+  Never _wrap(Object e) {
+    if (e is AuthException) throw e;
+    if (e is sb.AuthException) throw AuthException(e.message);
+    throw AuthException('Login failed. Check details and try again.');
+  }
 
   @override
-  Future<void> register(String email, String password) =>
-      throw UnimplementedError('Supabase wiring lands at the end.');
+  Future<AuthUser> login(String email, String password) async {
+    try {
+      final res = await _client.auth.signInWithPassword(
+        email: email.trim().toLowerCase(),
+        password: password,
+      );
+      final userEmail = res.user?.email ?? email;
+      return _toUser(userEmail);
+    } catch (e) {
+      _wrap(e);
+    }
+  }
 
   @override
-  Future<AuthUser> verifyOtp(String email, String code) =>
-      throw UnimplementedError('Supabase wiring lands at the end.');
+  Future<void> register(String email, String password) async {
+    try {
+      await _client.auth.signUp(
+        email: email.trim().toLowerCase(),
+        password: password,
+      );
+    } catch (e) {
+      _wrap(e);
+    }
+  }
 
   @override
-  Future<void> logout() async {}
+  Future<AuthUser> verifyOtp(String email, String code) async {
+    try {
+      final res = await _client.auth.verifyOTP(
+        type: sb.OtpType.email,
+        token: code.trim(),
+        email: email.trim().toLowerCase(),
+      );
+      final userEmail = res.user?.email ?? email;
+      return _toUser(userEmail);
+    } catch (e) {
+      _wrap(e);
+    }
+  }
+
+  @override
+  Future<void> logout() async {
+    try {
+      await _client.auth.signOut();
+    } catch (_) {}
+  }
+
+  String _defaultName(String email) {
+    final local = email.split('@').first;
+    if (local.isEmpty) return 'User';
+    return local[0].toUpperCase() + local.substring(1);
+  }
 }
 
 class AuthService {
@@ -132,7 +195,8 @@ class AuthService {
 
   AuthProvider _provider = MockAuthProvider();
 
-  /// Swap to SupabaseAuthProvider() at the end. UI never changes.
+  /// Swap to SupabaseAuthProvider() when BackendConfig.hasSupabase.
+  /// UI never changes.
   void useProvider(AuthProvider p) => _provider = p;
 
   Future<AuthUser> login(String email, String password) =>
@@ -153,5 +217,20 @@ class AuthService {
   static String? passwordError(String v) {
     if (v.length < 4) return 'At least 4 characters.';
     return null;
+  }
+}
+
+/// One-time Supabase init + provider swap. Safe to call unconfigured
+/// (no-op, mock stays). Called from HIWBootApp._boot.
+Future<void> ensureSupabaseAuth() async {
+  if (!BackendConfig.hasSupabase) return;
+  try {
+    await sb.Supabase.initialize(
+      url: BackendConfig.supabaseUrl,
+      publishableKey: BackendConfig.supabaseAnonKey,
+    );
+    AuthService().useProvider(SupabaseAuthProvider());
+  } catch (_) {
+    // Cloud auth stays off; mock continues. Never crash boot.
   }
 }

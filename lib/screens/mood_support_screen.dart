@@ -8,7 +8,6 @@ import '../hive/chat_hive_model.dart';
 import '../avatar/avatar_store.dart';
 import '../core/history_store.dart';
 import '../core/tester_gate.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Also likely needed for commands
 
 /// Dedicated Mood Support Chatbot - Unlimited, empathetic AI support
 class MoodSupportScreen extends StatefulWidget {

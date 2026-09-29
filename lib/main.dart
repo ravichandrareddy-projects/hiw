@@ -29,7 +29,9 @@ import 'hive/hive_init.dart';
 import 'core/nutrition_store.dart';
 import 'avatar/avatar_store.dart';
 import 'core/app_state.dart';
+import 'core/auth_service.dart'; // ☁️ Supabase swap (no-op unconfigured)
 import 'core/tester_gate.dart';
+import 'services/analytics_service.dart'; // 📊 Firebase-ready stub
 import 'core/food_addons_config.dart'; // 🆕
 
 // services
@@ -99,6 +101,12 @@ class _BootScreenState extends State<_BootScreen> {
     try {
       await FoodNutritionDatabase()
           .init(); // 🥗 Load 2,621 food items with portions & micronutrients
+    } catch (_) {}
+    try {
+      await ensureSupabaseAuth(); // ☁️ No-op unless dart-defines supplied
+    } catch (_) {}
+    try {
+      await AnalyticsService().init(); // 📊 No-op until Firebase ready
     } catch (_) {}
     if (!mounted) return;
     Navigator.of(context).pushReplacement(

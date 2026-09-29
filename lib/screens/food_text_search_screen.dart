@@ -14,9 +14,11 @@ import 'food_result_screen.dart';
 
 class FoodTextSearchScreen extends StatefulWidget {
   final MealType initialMeal;
+  final String? initialQuery; // 🆕 barcode flow pre-fills the OFF name
   const FoodTextSearchScreen({
     super.key,
     this.initialMeal = MealType.lunch,
+    this.initialQuery,
   });
 
   @override
@@ -45,6 +47,17 @@ class _FoodTextSearchScreenState extends State<FoodTextSearchScreen> {
     _ctrl.dispose();
     _deb?.cancel();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final q = widget.initialQuery?.trim() ?? '';
+    if (q.isNotEmpty) {
+      _ctrl.text = q;
+      _searched = true;
+      _hits = _svc.search(q, limit: 12);
+    }
   }
 
   void _onChanged(String v) {

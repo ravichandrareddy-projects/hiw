@@ -1,8 +1,10 @@
 // lib/services/analytics_service.dart
-// Counts-only analytics, Firebase-ready but fully offline-safe.
-// No google-services.json required: events are counted locally
-// (SharedPreferences) until Firebase plugs in at the end.
+// Counts-only analytics, Firebase-mirrored when available.
+// Works with NO google-services.json: Firebase init is guarded and
+// local SharedPreferences counts always run. Opt-out blocks both.
 // No PII, no food names, no chat text — counts only.
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,10 +15,27 @@ class AnalyticsService {
 
   static const _optOutKey = 'analytics_opt_out';
 
+  bool _firebaseReady = false;
+
+  /// Guarded Firebase init. Safe without google-services.json
+  /// (stays local-only). Called from HIWBootApp._boot.
+  Future<void> init() async {
+    try {
+      await Firebase.initializeApp();
+      _firebaseReady = true;
+    } catch (_) {
+      _firebaseReady = false;
+    }
+  }
+
+  bool get firebaseReady => _firebaseReady;
+
   /// Allowlist — counts only. Add new events here, never free-form.
   static const allowed = {
     'scan_success',
     'scan_quota_hit',
+    'barcode_success',
+    'barcode_miss',
     'chat_sent',
     'chat_quota_hit',
     'paywall_open',
@@ -37,8 +56,8 @@ class AnalyticsService {
     await prefs.setBool(_optOutKey, v);
   }
 
-  /// Local count + debug log. Firebase.logEvent plugs in here later
-  /// (same call sites, zero UI churn).
+  /// Local count + debug log + Firebase mirror (when ready).
+  /// Same call sites regardless of backend state — zero UI churn.
   Future<void> log(String event) async {
     if (!allowed.contains(event)) return;
     if (await isOptedOut()) return;
@@ -47,6 +66,11 @@ class AnalyticsService {
       final k = 'analytics_count_$event';
       await prefs.setInt(k, (prefs.getInt(k) ?? 0) + 1);
     } catch (_) {}
+    if (_firebaseReady) {
+      try {
+        await FirebaseAnalytics.instance.logEvent(name: event);
+      } catch (_) {}
+    }
     debugPrint('HIW ANALYTICS: $event');
   }
 
@@ -54,9 +78,4 @@ class AnalyticsService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt('analytics_count_$event') ?? 0;
   }
-
-  // TODO(firebase): when android/app/google-services.json lands:
-  // 1. add firebase_core + firebase_analytics to pubspec,
-  // 2. Firebase.initializeApp() in HIWBootApp._boot,
-  // 3. mirror log() to FirebaseAnalytics.instance.logEvent(name: event).
 }

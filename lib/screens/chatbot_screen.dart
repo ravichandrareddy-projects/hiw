@@ -7,7 +7,6 @@ import '../services/gemini_service.dart';
 import '../services/greeting_detection_service.dart'; // 🆕 AI greeting detection
 import '../widgets/premium_glass_card.dart';
 import '../core/history_store.dart';
-import '../core/food_item.dart';
 import '../core/subscription/entitlement.dart';
 import '../core/subscription/plan.dart';
 import '../core/subscription/usage_store.dart';
@@ -15,7 +14,6 @@ import '../core/tester_gate.dart';
 import '../services/analytics_service.dart';
 import '../widgets/limit_sheet.dart';
 import '../avatar/avatar_store.dart';
-import '../config/ai_config.dart';
 import '../hive/chat_hive_model.dart'; // 🆕 Chat model
 import 'mood_support_screen.dart'; // 🆕 Mood support chatbot
 import '../themes/hiw_theme.dart';
