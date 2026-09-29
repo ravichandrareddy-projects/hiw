@@ -204,6 +204,38 @@ class NotificationService {
     }
   }
 
+  /// Evening streak-at-risk nudge (ID 300, daily 21:00). Gentle, one tap.
+  Future<void> scheduleStreakNudge() async {
+    final now = tz.TZDateTime.now(tz.local);
+    var at = tz.TZDateTime(tz.local, now.year, now.month, now.day, 21, 0);
+    if (at.isBefore(now)) {
+      at = at.add(const Duration(days: 1));
+    }
+    await notificationsPlugin.zonedSchedule(
+      300,
+      '🔥 Protect your streak',
+      'Log dinner before bed to keep it alive.',
+      at,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'streak_channel',
+          'Streak Reminders',
+          channelDescription: 'Evening streak protection nudge',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
+  Future<void> cancelStreakNudge() async {
+    await notificationsPlugin.cancel(300);
+  }
+
   Future<void> showImmediateNotification({
     required int id,
     required String title,

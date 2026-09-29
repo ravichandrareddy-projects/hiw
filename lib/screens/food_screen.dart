@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 // normal widgets
 import '../widgets/glass_card.dart';
+import '../widgets/habit_card.dart';
+import '../services/notification_service.dart';
 
 import 'purchases_screen.dart';
 import 'daily_quest_screen.dart';
@@ -78,7 +80,12 @@ class _FoodScreenState extends State<FoodScreen> {
   final meals = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
   String _displayName = 'User'; // 👤 DYNAMIC NAME
 
-  late int dailyTargetCalories;
+  /// Live view of the personalized target (onboarding/profile can
+  /// change it at any time — no stale cached copy).
+  int get dailyTargetCalories {
+    final v = _nutritionStore.dailyTargetCalories;
+    return v > 0 ? v : 2000;
+  }
 
   int get remainingCalories =>
       (dailyTargetCalories - _nutritionStore.totalCalories).clamp(0, 9999);
@@ -127,19 +134,23 @@ class _FoodScreenState extends State<FoodScreen> {
   void initState() {
     super.initState();
 
-    dailyTargetCalories = _nutritionStore.dailyTargetCalories;
-    if (dailyTargetCalories <= 0) {
-      dailyTargetCalories = 2000;
-      _nutritionStore.setDailyTargetCalories(2000);
-    }
+    // Do NOT backfill 2000 here: onboarding writes the real target
+    // first; the getter above falls back to 2000 for display only.
+    // (Legacy installs keep whatever value is already stored.)
 
     Future.microtask(() async {
       await _waterStore.init();
       await _avatarStore.init();
       final name = await AppState.getUsername();
       if (name != null) {
-        setState(() => _displayName = name);
+        if (mounted) setState(() => _displayName = name);
       }
+      // Existing users with the streak flag: keep the evening nudge alive.
+      try {
+        if (await AppState.isReminderEnabled('streak')) {
+          await NotificationService().scheduleStreakNudge();
+        }
+      } catch (_) {}
     });
 
     _clock = Timer.periodic(
@@ -306,6 +317,9 @@ class _FoodScreenState extends State<FoodScreen> {
                 ],
               ),
             ),
+            SizedBox(height: 4.h),
+            // 🏆 HABIT ENGINE: score + challenge + freezes + share
+            const HabitCard(),
             SizedBox(height: 80.h), // 📏 EXTRA BOTTOM SPACE
           ],
         ),
@@ -494,7 +508,9 @@ class _FoodScreenState extends State<FoodScreen> {
                           icon: Icons.fitness_center_rounded,
                           iconColor: Colors.lightBlueAccent,
                           label: 'Protein',
-                          value: totals.protein.toStringAsFixed(1))),
+                          value: _nutritionStore.proteinTargetG > 0
+                              ? '${totals.protein.toStringAsFixed(1)} / ${_nutritionStore.proteinTargetG}g'
+                              : totals.protein.toStringAsFixed(1))),
                 ],
               ),
               SizedBox(height: 7.h),
@@ -846,6 +862,13 @@ class _FoodScreenState extends State<FoodScreen> {
                 color: Theme.of(context).textTheme.bodyMedium?.color,
                 fontSize: 12.sp),
           ),
+          if (_nutritionStore.hydrationTargetMl > 0)
+            Text(
+              'Starting target: ${_nutritionStore.hydrationTargetMl} ml',
+              style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                  fontSize: 11.sp),
+            ),
           SizedBox(height: 8.h),
           Wrap(
             spacing: 3.w,

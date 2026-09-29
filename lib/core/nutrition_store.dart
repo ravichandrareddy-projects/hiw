@@ -18,6 +18,7 @@ class NutritionStore {
     );
 
     // 🔥 LOAD TODAY FOOD DATA
+    _loadTargets();
     _loadFromHive();
   }
 
@@ -48,6 +49,39 @@ class NutritionStore {
   void setDailyTargetCalories(int calories) {
     _dailyTargetCalories = calories;
     _metaBox.put('dailyTargetCalories', calories);
+  }
+
+  // =============================
+  // PERSONALIZED TARGETS (onboarding / profile, metaBox)
+  // =============================
+  int _proteinTargetG = -1;
+  int _fiberTargetG = -1;
+  int _hydrationTargetMl = -1;
+
+  int get proteinTargetG => _proteinTargetG;
+  int get fiberTargetG => _fiberTargetG;
+  int get hydrationTargetMl => _hydrationTargetMl;
+
+  void setProteinTargetG(int v) {
+    _proteinTargetG = v;
+    _metaBox.put('proteinTargetG', v);
+  }
+
+  void setFiberTargetG(int v) {
+    _fiberTargetG = v;
+    _metaBox.put('fiberTargetG', v);
+  }
+
+  void setHydrationTargetMl(int v) {
+    _hydrationTargetMl = v;
+    _metaBox.put('hydrationTargetMl', v);
+  }
+
+  void _loadTargets() {
+    _proteinTargetG = _metaBox.get('proteinTargetG', defaultValue: -1);
+    _fiberTargetG = _metaBox.get('fiberTargetG', defaultValue: -1);
+    _hydrationTargetMl =
+        _metaBox.get('hydrationTargetMl', defaultValue: -1);
   }
 
   // =============================

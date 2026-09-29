@@ -1,0 +1,209 @@
+// lib/auth/register_screen.dart → OTP verify.
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../core/auth_service.dart';
+import '../themes/hiw_theme.dart';
+import '../widgets/hiw_card.dart';
+import 'otp_screen.dart';
+
+class RegisterScreen extends StatefulWidget {
+  final VoidCallback? onDone;
+  const RegisterScreen({super.key, this.onDone});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _email = TextEditingController();
+  final _pass = TextEditingController();
+  final _confirm = TextEditingController();
+  final bool _obscure = true;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _pass.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    final email = _email.text.trim();
+    if (!AuthService.validEmail(email)) {
+      setState(() => _error = 'Enter a valid email address.');
+      return;
+    }
+    final perr = AuthService.passwordError(_pass.text);
+    if (perr != null) {
+      setState(() => _error = 'Password: $perr');
+      return;
+    }
+    if (_pass.text != _confirm.text) {
+      setState(() => _error = 'Passwords do not match.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await AuthService().register(email, _pass.text);
+      if (!mounted) return;
+      final ok = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => OtpScreen(
+            email: email,
+            onDone: widget.onDone,
+          ),
+        ),
+      );
+      if (ok == true && mounted && widget.onDone == null) {
+        Navigator.of(context).pop(true);
+      }
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'No internet. Check connection and retry.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = HiwTheme.of(context);
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded, color: t.inkColor),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(24.w, 8.h, 24.w, 24.h),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Create account.',
+                style: TextStyle(
+                  color: t.inkColor,
+                  fontSize: 28.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 6.h),
+              Text(
+                'One account for all your devices.',
+                style:
+                    TextStyle(color: t.mutedColor, fontSize: 14.sp),
+              ),
+              SizedBox(height: 24.h),
+              HiwCard(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: TextField(
+                  controller: _email,
+                  keyboardType: TextInputType.emailAddress,
+                  style:
+                      TextStyle(color: t.inkColor, fontSize: 15.sp),
+                  decoration: InputDecoration(
+                    hintText: 'Email',
+                    hintStyle: TextStyle(color: t.mutedColor),
+                    border: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 14.h),
+                  ),
+                ),
+              ),
+              SizedBox(height: 12.h),
+              HiwCard(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: TextField(
+                  controller: _pass,
+                  obscureText: _obscure,
+                  style:
+                      TextStyle(color: t.inkColor, fontSize: 15.sp),
+                  decoration: InputDecoration(
+                    hintText: 'Password (min 4)',
+                    hintStyle: TextStyle(color: t.mutedColor),
+                    border: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 14.h),
+                  ),
+                ),
+              ),
+              SizedBox(height: 12.h),
+              HiwCard(
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                child: TextField(
+                  controller: _confirm,
+                  obscureText: _obscure,
+                  style:
+                      TextStyle(color: t.inkColor, fontSize: 15.sp),
+                  decoration: InputDecoration(
+                    hintText: 'Confirm password',
+                    hintStyle: TextStyle(color: t.mutedColor),
+                    border: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: 14.h),
+                  ),
+                  onSubmitted: (_) => _register(),
+                ),
+              ),
+              if (_error != null) ...[
+                SizedBox(height: 10.h),
+                Text(
+                  _error!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 13.sp,
+                  ),
+                ),
+              ],
+              SizedBox(height: 20.h),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: t.accentColor,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 16.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16.r),
+                    ),
+                  ),
+                  onPressed: _busy ? null : _register,
+                  child: _busy
+                      ? SizedBox(
+                          width: 20.w,
+                          height: 20.w,
+                          child:
+                              const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'Send OTP',
+                          style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

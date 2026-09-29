@@ -17,7 +17,12 @@ import '../core/food_nutrition_database.dart';
 import '../core/food_result.dart';
 import '../core/food_search_service.dart';
 import '../services/food_recognition_service.dart';
+import '../core/subscription/entitlement.dart';
+import '../core/subscription/plan.dart';
+import '../core/subscription/usage_store.dart';
+import '../services/analytics_service.dart';
 import '../themes/hiw_theme.dart';
+import '../widgets/limit_sheet.dart';
 import '../widgets/detection_result_modal.dart';
 import '../widgets/rainbow_scan_overlay.dart';
 import 'food_result_screen.dart';
@@ -347,6 +352,21 @@ class _ScannerScreenState extends State<ScannerScreen>
       return;
     }
     if (_isBarcode) {
+      // Barcode quota enforced (lookup flow lands here when ready).
+      // No consume yet — nothing successful to count.
+      if (!(await EntitlementStore.current()).isPro &&
+          UsageStore.barcodeLeft() <= 0) {
+        if (!mounted) return;
+        await showLimitSheet(
+          context,
+          title: 'Monthly barcode scans used up',
+          usedLabel:
+              '${PlanConfig.freeBarcodePerMonth}/${PlanConfig.freeBarcodePerMonth} barcode scans this month',
+          resetLabel: UsageStore.monthResetLabel(),
+        );
+        return;
+      }
+      if (!mounted) return;
       final t = HiwTheme.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -355,6 +375,32 @@ class _ScannerScreenState extends State<ScannerScreen>
           backgroundColor: t.accentColor,
         ),
       );
+      return;
+    }
+
+    // Free quota: 40 photo scans / month (Pro = fair use, no gate).
+    // Text search is NEVER gated by this.
+    if (!(await EntitlementStore.current()).isPro &&
+        UsageStore.scansLeft() <= 0) {
+      if (!mounted) return;
+      AnalyticsService().log('scan_quota_hit');
+      final goText = await showLimitSheet(
+        context,
+        title: 'Monthly scans used up',
+        usedLabel:
+            '${PlanConfig.freeScansPerMonth}/${PlanConfig.freeScansPerMonth} photo scans this month',
+        resetLabel: UsageStore.monthResetLabel(),
+        freeAlternativeLabel: 'Search food by text instead',
+      );
+      if (!mounted) return;
+      if (goText) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) =>
+                FoodTextSearchScreen(initialMeal: _mealHint()),
+          ),
+        );
+      }
       return;
     }
 
@@ -465,13 +511,38 @@ class _ScannerScreenState extends State<ScannerScreen>
     _statusTimer?.cancel();
 
     final imgProvider = FileImage(shotFile);
-    final normalized = FoodRecognitionResult.fromRecognition(
+    var normalized = FoodRecognitionResult.fromRecognition(
       result,
       image: imgProvider,
       imagePath: shotFile.path,
       mealType: _mealHint(),
       alternatives: _buildAlternatives(result),
     );
+
+    // Free combo cap: 3 foods per scan (Pro = advanced plates).
+    // Decided BEFORE quota burns — abort costs nothing.
+    if (normalized.isCombo &&
+        normalized.components.length > PlanConfig.freeComboFoods &&
+        !(await EntitlementStore.current()).isPro) {
+      if (!mounted) return;
+      final keep = await showLimitSheet(
+        context,
+        title: 'Big plate detected',
+        usedLabel:
+            '${normalized.components.length} foods found — Free covers ${PlanConfig.freeComboFoods}',
+        resetLabel: 'no wait — Pro unlocks bigger plates',
+        freeAlternativeLabel:
+            'Continue with first ${PlanConfig.freeComboFoods}',
+      );
+      if (!mounted) return;
+      if (keep) {
+        normalized = normalized.truncated(PlanConfig.freeComboFoods);
+      } else {
+        _controller?.resumePreview().ignore();
+        setState(() => _image = null);
+        return;
+      }
+    }
 
     if (normalized.status == FoodMatchStatus.notFood) {
       _showUnclearSheet(shotFile, result.itemName);
@@ -481,6 +552,12 @@ class _ScannerScreenState extends State<ScannerScreen>
       _showResultDialog(result, shotFile);
       return;
     }
+
+    // Quota consumed ONLY on successful food recognition that reaches
+    // the result screen (never on failure/abort/not-food).
+    // Idem = photo path: RETRY within 60s never double-counts.
+    UsageStore.consumeScan(idem: shotFile.path);
+    AnalyticsService().log('scan_success');
 
     // Matched or low-confidence → shared result screen.
     final saved = await Navigator.of(context).push<bool>(

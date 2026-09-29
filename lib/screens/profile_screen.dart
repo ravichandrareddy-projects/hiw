@@ -4,6 +4,15 @@ import 'package:flutter/services.dart';
 import '../core/app_state.dart';
 import '../core/nutrition_store.dart';
 import 'reminders_screen.dart';
+import 'profile_edit_screen.dart';
+import 'paywall_screen.dart';
+import 'fasting_screen.dart';
+import 'mealplan_screen.dart';
+import 'trends_screen.dart';
+import '../core/subscription/entitlement.dart';
+import '../core/subscription/plan.dart';
+import '../core/subscription/coupon_service.dart';
+import '../services/analytics_service.dart';
 import '../services/notification_service.dart';
 import '../main.dart';
 import '../events/event_manager.dart';
@@ -190,6 +199,129 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           SizedBox(height: 12.h),
 
+                          // 🌱 HEALTH PROFILE TILE (onboarding values, editable)
+                          _buildTile(
+                            context,
+                            icon: Icons.person_outline_rounded,
+                            color: Colors.greenAccent,
+                            title: 'My Health Profile',
+                            subtitle:
+                                'Goals, body, diet, daily targets',
+                            isDark: isDark,
+                            onTap: () async {
+                              final changed =
+                                  await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const ProfileEditScreen()),
+                              );
+                              if (changed == true) {
+                                _loadUserData();
+                              }
+                            },
+                          ),
+
+                          SizedBox(height: 12.h),
+
+                          // ⭐ HIW PRO TILE
+                          _buildTile(
+                            context,
+                            icon: Icons.workspace_premium_rounded,
+                            color: Colors.amberAccent,
+                            title: 'HIW Pro',
+                            subtitle: 'Plans, fasting, trends & more',
+                            isDark: isDark,
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const PaywallScreen()),
+                              );
+                              _loadUserData();
+                            },
+                          ),
+
+                          SizedBox(height: 12.h),
+
+                          // 🎟️ REDEEM PRO CODE (coupons)
+                          _buildTile(
+                            context,
+                            icon: Icons.confirmation_number_outlined,
+                            color: Colors.pinkAccent,
+                            title: 'Redeem Pro Code',
+                            subtitle: 'Have a coupon? Unlock Pro',
+                            isDark: isDark,
+                            onTap: () => _showRedeemDialog(context),
+                          ),
+
+                          SizedBox(height: 12.h),
+
+                          // ⏳ FASTING TILE (Pro)
+                          _buildTile(
+                            context,
+                            icon: Icons.timer_outlined,
+                            color: Colors.deepOrangeAccent,
+                            title: 'Fasting Timer',
+                            subtitle: 'Windows, rings & history',
+                            isDark: isDark,
+                            onTap: () =>
+                                _openProFeature(context,
+                                    Feature.fasting,
+                                    const FastingScreen()),
+                          ),
+
+                          SizedBox(height: 12.h),
+
+                          // 🍽️ MEAL PLANS TILE (Pro)
+                          _buildTile(
+                            context,
+                            icon: Icons.restaurant_menu_rounded,
+                            color: Colors.lightGreenAccent,
+                            title: 'Meal Plans',
+                            subtitle:
+                                'Deterministic day plans from your targets',
+                            isDark: isDark,
+                            onTap: () =>
+                                _openProFeature(context,
+                                    Feature.mealPlans,
+                                    const MealPlanScreen()),
+                          ),
+
+                          SizedBox(height: 12.h),
+
+                          // 📈 TRENDS TILE (Pro)
+                          _buildTile(
+                            context,
+                            icon: Icons.show_chart_rounded,
+                            color: Colors.cyanAccent,
+                            title: 'Trends & Gaps',
+                            subtitle: '30/90/365 days + export',
+                            isDark: isDark,
+                            onTap: () =>
+                                _openProFeature(context,
+                                    Feature.trends,
+                                    const TrendsScreen()),
+                          ),
+
+                          SizedBox(height: 12.h),
+
+                          // 🔁 RESET PERSONALIZATION TILE
+                          _buildTile(
+                            context,
+                            icon: Icons.restart_alt_rounded,
+                            color: Colors.orangeAccent,
+                            title: 'Reset Personalization',
+                            subtitle:
+                                'Restart the onboarding flow',
+                            isDark: isDark,
+                            onTap: () =>
+                                _confirmReset(context),
+                          ),
+
+                          SizedBox(height: 12.h),
+
                           // 🔔 REMINDERS TILE
                           _buildTile(
                             context,
@@ -203,6 +335,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               MaterialPageRoute(
                                   builder: (_) => const RemindersScreen()),
                             ),
+                          ),
+
+                          SizedBox(height: 12.h),
+
+                          // 📊 ANALYTICS & PRIVACY TILE (counts-only, opt-out)
+                          _buildTile(
+                            context,
+                            icon: Icons.privacy_tip_outlined,
+                            color: Colors.grey,
+                            title: 'Analytics & Privacy',
+                            subtitle:
+                                'Counts-only usage stats • Firebase plugs in later',
+                            isDark: isDark,
+                            onTap: () => _showPrivacyDialog(context),
                           ),
 
                           SizedBox(height: 12.h),
@@ -410,6 +556,198 @@ class _ProfileScreenState extends State<ProfileScreen> {
       MaterialPageRoute(builder: (_) => const AppGate()),
       (_) => false,
     );
+  }
+
+  Future<void> _confirmReset(BuildContext context) async {
+    final t = HiwTheme.of(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor:
+            t.isMinimal ? Colors.white : const Color(0xFF1E293B),
+        title:
+            Text('Reset Personalization', style: TextStyle(color: t.inkColor)),
+        content: Text(
+            'This restarts the onboarding flow so HIW can learn you again. Your food logs stay.',
+            style: TextStyle(color: t.mutedColor)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: t.mutedColor)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style:
+                TextButton.styleFrom(foregroundColor: Colors.orangeAccent),
+            child: const Text('Reset',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    await AppState.resetPersonalization();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const AppGate()),
+      (_) => false,
+    );
+  }
+
+  Future<void> _showPrivacyDialog(BuildContext context) async {
+    final t = HiwTheme.of(context);
+    var optedOut = await AnalyticsService().isOptedOut();
+    if (!context.mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => AlertDialog(
+          backgroundColor:
+              t.isMinimal ? Colors.white : const Color(0xFF1E293B),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.r)),
+          title:
+              Text('Analytics & Privacy', style: TextStyle(color: t.inkColor)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'HIW counts feature usage only (scans, chats, upgrades). No food names, no chat text, no PII. Firebase Analytics plugs in when google-services.json lands.',
+                style: TextStyle(color: t.mutedColor, fontSize: 13.sp),
+              ),
+              SizedBox(height: 12.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Opt out',
+                        style: TextStyle(color: t.inkColor)),
+                  ),
+                  Switch(
+                    value: optedOut,
+                    onChanged: (v) async {
+                      await AnalyticsService().setOptOut(v);
+                      setSheet(() => optedOut = v);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showRedeemDialog(BuildContext context) async {
+    final t = HiwTheme.of(context);
+    final ctrl = TextEditingController();
+    var busy = false;
+    String? error;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => AlertDialog(
+          backgroundColor:
+              t.isMinimal ? Colors.white : const Color(0xFF1E293B),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.r)),
+          title: Text('Redeem Pro Code',
+              style: TextStyle(color: t.inkColor)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: ctrl,
+                textCapitalization: TextCapitalization.characters,
+                style: TextStyle(color: t.inkColor),
+                decoration: InputDecoration(
+                  hintText: 'HIW-PRO-XXXX-XXX',
+                  hintStyle: TextStyle(color: t.mutedColor),
+                  errorText: error,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide: BorderSide(color: t.cardStroke),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                    borderSide:
+                        BorderSide(color: Theme.of(ctx).primaryColor),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: busy ? null : () => Navigator.pop(ctx),
+              child:
+                  Text('Cancel', style: TextStyle(color: t.mutedColor)),
+            ),
+            ElevatedButton(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      setSheet(() {
+                        busy = true;
+                        error = null;
+                      });
+                      final out =
+                          await CouponService.redeem(ctrl.text);
+                      if (!ctx.mounted) return;
+                      if (out.result == CouponResult.ok) {
+                        Navigator.pop(ctx);
+                        if (context.mounted) {
+                          AnalyticsService().log('coupon_redeem');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(out.message)),
+                          );
+                          _loadUserData();
+                        }
+                      } else {
+                        setSheet(() {
+                          busy = false;
+                          error = out.message;
+                        });
+                      }
+                    },
+              child: Text(busy ? 'Checking...' : 'Redeem'),
+            ),
+          ],
+        ),
+      ),
+    );
+    ctrl.dispose();
+  }
+
+  Future<void> _openProFeature(
+      BuildContext context, Feature feature, Widget page) async {
+    if (await EntitlementStore.canUse(feature)) {
+      if (!context.mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => page),
+      );
+      return;
+    }
+    if (!context.mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaywallScreen(
+            feature: 'This lives in HIW Pro. Free stays generous.'),
+      ),
+    );
+    if (mounted) setState(() {});
   }
 
   void _showThemePicker(BuildContext context) {

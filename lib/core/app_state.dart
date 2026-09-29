@@ -169,6 +169,191 @@ class AppState {
     await prefs.remove(_customPrimaryKey);
   }
 
+  // 🌱 ONBOARDING / PERSONALIZATION (v1, survives logout like theme)
+  static const _onboardingV1Key = 'onboardingV1Done';
+  static const _ageKey = 'profile_age';
+  static const _sexKey = 'profile_sex';
+  static const _heightKey = 'profile_height_cm';
+  static const _weightKey = 'profile_weight_kg';
+  static const _bodyFatKey = 'profile_bodyfat';
+  static const _activityKey = 'profile_activity';
+  static const _goalKey = 'profile_goal';
+  static const _goalsExtraKey = 'profile_goals_extra';
+  static const _goalWeightKey = 'profile_goal_weight';
+  static const _dietKey = 'profile_diet';
+  static const _restrictionsKey = 'profile_restrictions';
+  static const _allergiesKey = 'profile_allergies';
+  static const _regionDistrictKey = 'region_district';
+  static const _regionStateKey = 'region_state';
+  static const _regionCountryKey = 'region_country';
+  static const _regionManualKey = 'region_manual';
+  static const _customTargetsKey = 'profile_custom_targets';
+
+  static Future<bool> onboardingV1Done() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_onboardingV1Key) ?? false;
+  }
+
+  static Future<void> setOnboardingV1Done(bool v) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_onboardingV1Key, v);
+  }
+
+  static Future<int?> getAge() async =>
+      (await SharedPreferences.getInstance()).getInt(_ageKey);
+  static Future<void> setAge(int v) async =>
+      (await SharedPreferences.getInstance()).setInt(_ageKey, v);
+
+  static Future<String?> getSex() async =>
+      (await SharedPreferences.getInstance()).getString(_sexKey);
+  static Future<void> setSex(String v) async =>
+      (await SharedPreferences.getInstance()).setString(_sexKey, v);
+
+  static Future<double?> getHeightCm() async =>
+      (await SharedPreferences.getInstance()).getDouble(_heightKey);
+  static Future<void> setHeightCm(double v) async =>
+      (await SharedPreferences.getInstance()).setDouble(_heightKey, v);
+
+  static Future<double?> getWeightKg() async =>
+      (await SharedPreferences.getInstance()).getDouble(_weightKey);
+  static Future<void> setWeightKg(double v) async =>
+      (await SharedPreferences.getInstance()).setDouble(_weightKey, v);
+
+  static Future<double?> getBodyFatPct() async =>
+      (await SharedPreferences.getInstance()).getDouble(_bodyFatKey);
+  static Future<void> setBodyFatPct(double? v) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (v == null) {
+      await prefs.remove(_bodyFatKey);
+    } else {
+      await prefs.setDouble(_bodyFatKey, v);
+    }
+  }
+
+  static Future<String?> getActivity() async =>
+      (await SharedPreferences.getInstance()).getString(_activityKey);
+  static Future<void> setActivity(String v) async =>
+      (await SharedPreferences.getInstance()).setString(_activityKey, v);
+
+  static Future<String?> getGoal() async =>
+      (await SharedPreferences.getInstance()).getString(_goalKey);
+  static Future<void> setGoal(String v) async =>
+      (await SharedPreferences.getInstance()).setString(_goalKey, v);
+
+  static Future<List<String>> getGoalsExtra() async =>
+      (await SharedPreferences.getInstance())
+          .getStringList(_goalsExtraKey) ??
+      const [];
+  static Future<void> setGoalsExtra(List<String> v) async =>
+      (await SharedPreferences.getInstance())
+          .setStringList(_goalsExtraKey, v);
+
+  static Future<double?> getGoalWeightKg() async =>
+      (await SharedPreferences.getInstance()).getDouble(_goalWeightKey);
+  static Future<void> setGoalWeightKg(double? v) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (v == null) {
+      await prefs.remove(_goalWeightKey);
+    } else {
+      await prefs.setDouble(_goalWeightKey, v);
+    }
+  }
+
+  static Future<String?> getDiet() async =>
+      (await SharedPreferences.getInstance()).getString(_dietKey);
+  static Future<void> setDiet(String v) async =>
+      (await SharedPreferences.getInstance()).setString(_dietKey, v);
+
+  static Future<List<String>> getRestrictions() async =>
+      (await SharedPreferences.getInstance())
+          .getStringList(_restrictionsKey) ??
+      const [];
+  static Future<void> setRestrictions(List<String> v) async =>
+      (await SharedPreferences.getInstance())
+          .setStringList(_restrictionsKey, v);
+
+  static Future<List<String>> getAllergies() async =>
+      (await SharedPreferences.getInstance())
+          .getStringList(_allergiesKey) ??
+      const [];
+  static Future<void> setAllergies(List<String> v) async =>
+      (await SharedPreferences.getInstance())
+          .setStringList(_allergiesKey, v);
+
+  static Future<void> setRegion({
+    String? district,
+    String? state,
+    String? country,
+    bool manual = true,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (district == null) {
+      await prefs.remove(_regionDistrictKey);
+    } else {
+      await prefs.setString(_regionDistrictKey, district);
+    }
+    if (state == null) {
+      await prefs.remove(_regionStateKey);
+    } else {
+      await prefs.setString(_regionStateKey, state);
+    }
+    if (country == null) {
+      await prefs.remove(_regionCountryKey);
+    } else {
+      await prefs.setString(_regionCountryKey, country);
+    }
+    await prefs.setBool(_regionManualKey, manual);
+  }
+
+  static Future<Map<String, String?>> getRegion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'district': prefs.getString(_regionDistrictKey),
+      'state': prefs.getString(_regionStateKey),
+      'country': prefs.getString(_regionCountryKey),
+    };
+  }
+
+  /// Which targets the user hand-edited (never silently overwritten, §19).
+  static Future<Set<String>> customTargets() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (prefs.getStringList(_customTargetsKey) ?? const []).toSet();
+  }
+
+  static Future<void> markTargetCustom(String which) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cur =
+        (prefs.getStringList(_customTargetsKey) ?? []).toSet()..add(which);
+    await prefs.setStringList(_customTargetsKey, cur.toList());
+  }
+
+  /// Clears personalization so onboarding can run again (Settings action).
+  static Future<void> resetPersonalization() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final k in [
+      _onboardingV1Key,
+      _ageKey,
+      _sexKey,
+      _heightKey,
+      _weightKey,
+      _bodyFatKey,
+      _activityKey,
+      _goalKey,
+      _goalsExtraKey,
+      _goalWeightKey,
+      _dietKey,
+      _restrictionsKey,
+      _allergiesKey,
+      _regionDistrictKey,
+      _regionStateKey,
+      _regionCountryKey,
+      _regionManualKey,
+      _customTargetsKey,
+    ]) {
+      await prefs.remove(k);
+    }
+  }
+
   static Future<void> logout() async {
     // 🧪 Release code if verified
     try {
@@ -188,19 +373,53 @@ class AppState {
     }
     
     final prefs = await SharedPreferences.getInstance();
-    // Keep appearance prefs across logout (theme, custom palette, timing).
-    final keepTheme = prefs.getString(_themeKey);
-    final keepBg = prefs.getInt(_customBgKey);
-    final keepCard = prefs.getInt(_customCardKey);
-    final keepPrimary = prefs.getInt(_customPrimaryKey);
-    final keepSplash = prefs.getInt(_splashSecondsKey);
-    await prefs.clear(); // This clears everything including verified status
-    if (keepTheme != null) await prefs.setString(_themeKey, keepTheme);
-    if (keepBg != null) await prefs.setInt(_customBgKey, keepBg);
-    if (keepCard != null) await prefs.setInt(_customCardKey, keepCard);
-    if (keepPrimary != null) {
-      await prefs.setInt(_customPrimaryKey, keepPrimary);
+    // Keep appearance + personalization across logout (theme, palette,
+    // timing, onboarding). Only tester/session keys are cleared.
+    final keep = <String, Object>{};
+    for (final k in [
+      _themeKey,
+      _customBgKey,
+      _customCardKey,
+      _customPrimaryKey,
+      _splashSecondsKey,
+      _onboardingV1Key,
+      _usernameKey,
+      _ageKey,
+      _sexKey,
+      _heightKey,
+      _weightKey,
+      _bodyFatKey,
+      _activityKey,
+      _goalKey,
+      _goalsExtraKey,
+      _goalWeightKey,
+      _dietKey,
+      _restrictionsKey,
+      _allergiesKey,
+      _regionDistrictKey,
+      _regionStateKey,
+      _regionCountryKey,
+      _regionManualKey,
+      _customTargetsKey,
+    ]) {
+      final v = prefs.get(k);
+      if (v != null) keep[k] = v;
     }
-    if (keepSplash != null) await prefs.setInt(_splashSecondsKey, keepSplash);
+    final keepLists = <String, List<String>>{};
+    for (final k in [_goalsExtraKey, _restrictionsKey, _allergiesKey]) {
+      final v = prefs.getStringList(k);
+      if (v != null) keepLists[k] = v;
+    }
+    await prefs.clear(); // This clears everything including verified status
+    for (final e in keep.entries) {
+      final v = e.value;
+      if (v is String) await prefs.setString(e.key, v);
+      if (v is int) await prefs.setInt(e.key, v);
+      if (v is double) await prefs.setDouble(e.key, v);
+      if (v is bool) await prefs.setBool(e.key, v);
+    }
+    for (final e in keepLists.entries) {
+      await prefs.setStringList(e.key, e.value);
+    }
   }
 }

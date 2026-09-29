@@ -269,6 +269,36 @@ class FoodRecognitionResult {
     return components.map((e) => e.toFoodItem()).toList();
   }
 
+  /// Free-tier plate cap: keep the first [n] foods, totals recombined.
+  FoodRecognitionResult truncated(int n) {
+    if (!isCombo || components.length <= n) return this;
+    final kept = components.sublist(0, n);
+    double sum(double Function(FoodRecognitionResult) f) =>
+        kept.fold(0.0, (a, e) => a + f(e));
+    return FoodRecognitionResult(
+      canonicalFoodId: canonicalFoodId,
+      displayName: displayName,
+      confidence: confidence,
+      status: status,
+      source: source,
+      image: image,
+      imagePath: imagePath,
+      calories: kept.fold(0, (a, e) => a + e.calories),
+      protein: double.parse(sum((e) => e.protein).toStringAsFixed(1)),
+      carbs: double.parse(sum((e) => e.carbs).toStringAsFixed(1)),
+      fats: double.parse(sum((e) => e.fats).toStringAsFixed(1)),
+      fiber: double.parse(sum((e) => e.fiber).toStringAsFixed(1)),
+      servingLabel: servingLabel,
+      servingWeightG: servingWeightG,
+      quantity: quantity,
+      mealType: mealType,
+      record: record,
+      alternatives: alternatives,
+      items: items,
+      components: kept,
+    );
+  }
+
   String get mealLabel {
     switch (mealType) {
       case MealType.breakfast:

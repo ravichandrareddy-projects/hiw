@@ -8,7 +8,7 @@ class PlainBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tm = ThemeManager();
-    final bgColor = tm.backgroundColorOverride ?? const Color(0xFFF7F9FC);
+    final bgColor = tm.backgroundColorOverride ?? const Color(0xFFFBF7EF);
 
     return Container(
       color: bgColor,

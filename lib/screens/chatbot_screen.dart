@@ -8,6 +8,11 @@ import '../services/greeting_detection_service.dart'; // 🆕 AI greeting detect
 import '../widgets/premium_glass_card.dart';
 import '../core/history_store.dart';
 import '../core/food_item.dart';
+import '../core/subscription/entitlement.dart';
+import '../core/subscription/plan.dart';
+import '../core/subscription/usage_store.dart';
+import '../services/analytics_service.dart';
+import '../widgets/limit_sheet.dart';
 import '../avatar/avatar_store.dart';
 import '../config/ai_config.dart';
 import '../hive/chat_hive_model.dart'; // 🆕 Chat model
@@ -26,8 +31,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   final TextEditingController _controller = TextEditingController();
   final List<String> _messages = [];
   bool _loading = false;
-  int _questionsLeft = 5;
-  int _newChatsAvailable = 1;
+  // Unified quota: single source is UsageStore daily chat (Free 5/day,
+  // Pro fair use). Legacy per-session qs_left_* counters removed (P2 ending).
+  int _chatLeft = PlanConfig.freeChatPerDay;
+  bool _isPro = false;
   String? _currentSessionId; // 🆕 Tracks the active chat session
 
   @override
@@ -42,6 +49,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   Future<void> _initChatSystem() async {
     await _loadDailyLimit();
     await _loadChatHistory();
+    await _refreshQuota();
   }
 
   // 🆕 Load chat history from Hive
@@ -80,12 +88,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       }
     }
 
-    // Load limit for this session
-    final prefs = await SharedPreferences.getInstance();
-    final left = prefs.getInt('qs_left_$_currentSessionId') ?? 5;
-
     setState(() {
-      _questionsLeft = left;
       _messages.clear();
       for (final chat in todayChats) {
         if (chat.sender == 'user') {
@@ -98,32 +101,14 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
-  // 🆕 Create new chat session
+  // 🆕 Create new chat session (unlimited sessions; quota is per-message/day)
   void _startNewChat() async {
-    final prefs = await SharedPreferences.getInstance();
-    final available = prefs.getInt('new_chats_available') ?? 1;
-
-    if (available <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('You can only create 1 extra new chat per day.')));
-      if (Scaffold.of(context).isDrawerOpen) Navigator.pop(context);
-      return;
-    }
-
-    // Decrement and save
-    await prefs.setInt('new_chats_available', available - 1);
-
     final newSessionId = DateTime.now().millisecondsSinceEpoch.toString();
-    await prefs.setInt('qs_left_$newSessionId', 5);
-
     setState(() {
       _currentSessionId = newSessionId;
       _messages.clear();
-      _questionsLeft = 5;
-      _newChatsAvailable = available - 1;
     });
-
-    if (Scaffold.of(context).isDrawerOpen) {
+    if (mounted && Scaffold.of(context).isDrawerOpen) {
       Navigator.pop(context);
     }
   }
@@ -148,46 +133,30 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   Future<void> _loadDailyLimit() async {
+    // Midnight reset: Hive holds only today's chats (UsageStore day-key
+    // resets the quota automatically — no counters here).
     final prefs = await SharedPreferences.getInstance();
     final lastDate = prefs.getString('last_chat_date') ?? '';
     final today = DateTime.now().toIso8601String().split('T')[0];
-
     if (lastDate != today) {
       await prefs.setString('last_chat_date', today);
-      await prefs.setInt('new_chats_available', 1);
-
-      // 🆕 Clear chat history on new day (midnight reset)
       _messages.clear();
-      final box = await Hive.openBox<ChatHive>('chat_history');
-      await box.clear(); // Delete all old messages
-
+      try {
+        final box = await Hive.openBox<ChatHive>('chat_history');
+        await box.clear();
+      } catch (_) {}
       _currentSessionId = DateTime.now().millisecondsSinceEpoch.toString();
-      await prefs.setInt('qs_left_$_currentSessionId', 5);
-
-      if (mounted) {
-        setState(() {
-          _questionsLeft = 5;
-          _newChatsAvailable = 1;
-        });
-      }
-    } else {
-      final available = prefs.getInt('new_chats_available') ?? 1;
-
-      if (mounted) {
-        setState(() {
-          _newChatsAvailable = available;
-        });
-      }
     }
   }
 
-  Future<void> _decreaseLimit() async {
-    if (_currentSessionId == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _questionsLeft--;
-    });
-    await prefs.setInt('qs_left_$_currentSessionId', _questionsLeft);
+  Future<void> _refreshQuota() async {
+    final pro = (await EntitlementStore.current()).isPro;
+    if (mounted) {
+      setState(() {
+        _isPro = pro;
+        _chatLeft = UsageStore.chatLeft();
+      });
+    }
   }
 
   Future<void> _send() async {
@@ -224,13 +193,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               "Foodity: 💀 STATS MINIMIZED! Avatar is at 0%. Emergency! 🚨";
         }
       } else if (text == '/reset' || text == '/reste') {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setInt('new_chats_available', 1);
-        await prefs.setInt('qs_left_$_currentSessionId', 5);
         setState(() {
           _messages.clear();
-          _questionsLeft = 5;
-          _newChatsAvailable = 1;
           devReply =
               "Foodity: 🔄 System Reset. Memory cleared. Energy restored.";
         });
@@ -286,15 +250,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               "Foodity: ❌ Could not find chat matching '$chatNameToRemove'. Please try the exact name from the sidebar.";
         }
       } else if (text == '/clean') {
-        final prefs = await SharedPreferences.getInstance();
         final box = await Hive.openBox<ChatHive>('chat_history');
         await box.clear();
-        await prefs.setInt('new_chats_available', 1);
-        await prefs.setInt('qs_left_$_currentSessionId', 5);
         setState(() {
           _messages.clear();
-          _questionsLeft = 5;
-          _newChatsAvailable = 1;
           devReply = "Foodity: 🧹 Database Cleaned. Total wipeout complete.";
         });
       } else {
@@ -320,16 +279,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       }
     }
 
-    // ⛔ LIMIT CHECK
-    if (_questionsLeft <= 0) {
-      setState(() {
-        _messages.add(
-            "Foodity: 🪫 Your session energy is depleted (0/5). Return tomorrow, or tap 'New Chat' heavily at top left to start another session! ($_newChatsAvailable available)");
-      });
-      _controller.clear();
-      return;
-    }
-
+    // Unified daily quota is the ONLY gate (legacy session counters removed).
     setState(() {
       _messages.add("You: $text");
       _loading = true;
@@ -375,8 +325,29 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       return;
     }
 
-    // 🤖 2. Real Question -> Query Gemini API
+    // 🤖 2. Real Question -> daily quota (Free 5/day, Pro fair use)
+    final isPro = (await EntitlementStore.current()).isPro;
+    if (!isPro && UsageStore.chatLeft() <= 0) {
+      if (mounted) {
+        setState(() => _loading = false);
+        AnalyticsService().log('chat_quota_hit');
+        await showLimitSheet(
+          context,
+          title: 'Daily answers used up',
+          usedLabel:
+              '${PlanConfig.freeChatPerDay}/${PlanConfig.freeChatPerDay} answers today',
+          resetLabel: 'tomorrow',
+          freeAlternativeLabel: 'Keep chatting with greetings (free)',
+        );
+        if (mounted) await _refreshQuota();
+      }
+      return;
+    }
+    final idem =
+        'chat_${_currentSessionId ?? 'new'}_${text.hashCode}';
     final String reply = await GeminiService.ask(text);
+    UsageStore.consumeChat(idem: idem);
+    AnalyticsService().log('chat_sent');
 
     if (mounted) {
       final botMessage = "Foodity: $reply";
@@ -387,7 +358,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       });
 
       await _saveMessage(botMessage, 'bot');
-      await _decreaseLimit();
+      await _refreshQuota();
     }
   }
 
@@ -584,7 +555,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                         ],
                       ),
                       const Spacer(),
-                      // Question counter
+                      // Question counter (unified daily quota; Pro = fair use)
                       PremiumGlassCard(
                         padding: EdgeInsets.symmetric(
                             horizontal: 10.w, vertical: 6.h),
@@ -596,7 +567,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                                 color: accent, size: 14),
                             SizedBox(width: 4.w),
                             Text(
-                              '$_questionsLeft/5 Qs | $_newChatsAvailable New Chats',
+                              _isPro
+                                  ? 'Pro • unlimited'
+                                  : '$_chatLeft/${PlanConfig.freeChatPerDay} answers',
                               style: TextStyle(
                                 color: accent,
                                 fontWeight: FontWeight.bold,

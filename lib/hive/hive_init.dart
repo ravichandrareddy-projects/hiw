@@ -29,4 +29,5 @@ Future<void> initHive() async {
   // 🔥 META BOXES (CRITICAL)
   await Hive.openBox('metaBox');        // 👈 for calories, profile data
   await Hive.openBox('avatarMetaBox');  // 👈 for avatar metadata
+  await Hive.openBox('quotas');         // 👈 subscription usage counters
 }

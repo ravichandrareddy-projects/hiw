@@ -177,14 +177,16 @@ class AppTheme {
     useMaterial3: true,
   );
 
+  /// Official DEFAULT HIW theme = Plain. Time-based themes remain
+  /// available explicitly via 'auto'; all other names are variants.
   static ThemeData getTheme(String name) {
-    if (name == 'plain') return plainTheme;
+    if (name == 'plain' || name == 'default') return plainTheme;
     if (name == 'customize') return plainTheme;
     if (name == 'greezy') return greezyTheme;
     if (name == 'christmas') return christmasTheme;
     if (name == 'sankranti') return sankrantiTheme;
-    
-    // ⏳ DYNAMIC DEFAULT
+
+    // ⏳ Time-based variants (explicit 'auto' opt-in).
     final hour = DateTime.now().hour;
     if (hour >= 5 && hour < 12) return morningTheme;
     if (hour >= 12 && hour < 17) return afternoonTheme;

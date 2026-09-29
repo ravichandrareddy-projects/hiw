@@ -9,6 +9,8 @@ import 'screens/scanner_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/avatar_screen.dart';
 import 'screens/tester_code_screen.dart';
+import 'screens/onboarding/onboarding_flow.dart';
+import 'auth/auth_welcome.dart';
 import 'screens/mood_support_screen.dart';
 import 'screens/update_log_screen.dart'; // 🆕
 import 'screens/splash_screen.dart'; // 🆕 HIW brand splash
@@ -201,7 +203,23 @@ class _AppGateState extends State<AppGate> {
       );
     }
 
-    // 2️⃣ Fully ready user
+    // 2️⃣ Mandatory login (no skip) — Supabase plugs in at the end.
+    final loggedIn = await AppState.isLoggedIn();
+    if (!loggedIn) {
+      return AuthWelcome(
+        onDone: () => setState(() {}),
+      );
+    }
+
+    // 3️⃣ First-time personalization (skipped forever once done)
+    final onboarded = await AppState.onboardingV1Done();
+    if (!onboarded) {
+      return OnboardingFlow(
+        onDone: () => setState(() {}),
+      );
+    }
+
+    // 3️⃣ Fully ready user
     return const MainShell();
   }
 }
