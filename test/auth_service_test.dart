@@ -50,4 +50,31 @@ void main() {
       throwsA(isA<AuthException>()),
     );
   });
+
+  test('Passwords stored hashed, never plaintext', () async {
+    final p = MockAuthProvider();
+    await p.register('hashme@gmail.com', 'secret123');
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('mock_auth_users') ?? '';
+    expect(raw.contains('secret123'), false);
+    expect(raw.contains('v1\$'), true);
+    // Login still works against the hash.
+    final u = await p.login('hashme@gmail.com', 'secret123');
+    expect(u.email, 'hashme@gmail.com');
+    expect(
+      () => p.login('hashme@gmail.com', 'wrong'),
+      throwsA(isA<AuthException>()),
+    );
+  });
+
+  test('Legacy plaintext entries upgrade on login', () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        'mock_auth_users', '{"legacy@gmail.com":"plainpw"}');
+    final u =
+        await MockAuthProvider().login('legacy@gmail.com', 'plainpw');
+    expect(u.email, 'legacy@gmail.com');
+    final raw = prefs.getString('mock_auth_users') ?? '';
+    expect(raw.contains('plainpw'), false);
+  });
 }

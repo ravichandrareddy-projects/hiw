@@ -119,7 +119,8 @@ class OtpService {
       },
     });
 
-    debugPrint('📦 Sending to EmailJS: $body');
+    // OTP redacted from logs on purpose (logcat is readable via adb).
+    debugPrint('📦 Sending OTP via EmailJS to: $email');
 
     final response = await http.post(
       url,

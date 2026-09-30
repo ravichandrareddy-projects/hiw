@@ -3,6 +3,8 @@
 // activates when --dart-define SUPABASE_URL/ANON_KEY are supplied
 // (see backend_config.dart). UI talks ONLY to AuthService.
 import 'dart:convert';
+import 'dart:math';
+import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../config/backend_config.dart';
@@ -29,6 +31,8 @@ abstract class AuthProvider {
 
 /// Mock provider for UI development. Seeded test account:
 /// user1@gmail.com / 1234. Registered accounts persist per device.
+/// Passwords are stored as salted SHA-256 (never plaintext);
+/// legacy plaintext entries auto-upgrade on next successful login.
 /// OTP is always 123456 (clearly mock — Supabase Auth replaces this).
 class MockAuthProvider implements AuthProvider {
   static const _usersKey = 'mock_auth_users';
@@ -37,10 +41,31 @@ class MockAuthProvider implements AuthProvider {
   static const testPassword = '1234';
   static const mockOtp = '123456';
 
+  static String _hash(String salt, String password) =>
+      sha256.convert(utf8.encode('$salt:$password')).toString();
+
+  static String _newEntry(String password) {
+    final salt = List.generate(
+      16,
+      (_) => 'abcdefghijklmnopqrstuvwxyz0123456789'[
+          Random.secure().nextInt(36)],
+    ).join();
+    return 'v1\$$salt\$${_hash(salt, password)}';
+  }
+
+  /// True when [stored] authorizes [password] (v1 hash or legacy plain).
+  static bool _check(String stored, String password) {
+    final parts = stored.split('\$');
+    if (parts.length == 3 && parts[0] == 'v1') {
+      return _hash(parts[1], password) == parts[2];
+    }
+    return stored == password; // legacy plaintext → upgraded on login
+  }
+
   Future<Map<String, String>> _users() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_usersKey);
-    final map = <String, String>{testEmail: testPassword};
+    final map = <String, String>{testEmail: _newEntry(testPassword)};
     if (raw != null) {
       try {
         final decoded = jsonDecode(raw) as Map<String, dynamic>;
@@ -65,8 +90,13 @@ class MockAuthProvider implements AuthProvider {
     if (stored == null) {
       throw AuthException('No account for this email. Try Register.');
     }
-    if (stored != password) {
+    if (!_check(stored, password)) {
       throw AuthException('Wrong password. Try again.');
+    }
+    // Silent upgrade: legacy plaintext → salted hash.
+    if (!stored.contains('\$')) {
+      users[email.trim().toLowerCase()] = _newEntry(password);
+      await _saveUsers(users);
     }
     return AuthUser(
       email: email.trim().toLowerCase(),
@@ -82,7 +112,7 @@ class MockAuthProvider implements AuthProvider {
     if (users.containsKey(key)) {
       throw AuthException('Account exists. Try Login.');
     }
-    users[key] = password;
+    users[key] = _newEntry(password);
     await _saveUsers(users);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_otpKey, mockOtp);
@@ -149,6 +179,10 @@ class SupabaseAuthProvider implements AuthProvider {
 
   @override
   Future<void> register(String email, String password) async {
+    if (password.length < 6) {
+      throw AuthException(
+          'Cloud accounts need at least 6 characters.');
+    }
     try {
       await _client.auth.signUp(
         email: email.trim().toLowerCase(),

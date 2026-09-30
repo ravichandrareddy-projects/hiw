@@ -1,0 +1,185 @@
+================================================================
+HIW — SUPABASE + FIREBASE SETUP GUIDE (sign-up / sign-in / OTP)
+================================================================
+No code changes needed. The app reads everything from config
+values YOU supply. Do Part A (Supabase) for login, Part B
+(Firebase) for analytics. Either order works.
+
+App package name: com.valtooy.hiw
+Key files in code:
+  lib/config/backend_config.dart   <- SUPABASE_URL / SUPABASE_ANON_KEY
+  lib/config/ai_config.dart        <- GEMINI_API_KEY (git-ignored, local)
+  android/app/google-services.json <- Firebase (you place this file)
+
+
+================================================================
+PART A — SUPABASE (real sign-up / sign-in / email OTP)
+================================================================
+
+A1. CREATE ACCOUNT + PROJECT
+  1. Go to https://supabase.com -> Sign in (GitHub login is fastest).
+  2. Dashboard -> "New project".
+     - Name:        hiw
+     - Password:    make a strong DB password, SAVE it (you need it
+                    only if you ever open the raw database).
+     - Region:      South Asia (Mumbai) — closest to India users.
+     - Plan:        Free.
+  3. Wait ~2 minutes until status is green/active.
+
+A2. KEYS TO TAKE (2 values, copy exactly)
+  1. Left sidebar gear icon -> "Project Settings" -> "API".
+  2. Copy these two:
+     KEY 1 — Project URL
+         Looks like : https://abcdefghijklm.supabase.co
+         Dart flag  : SUPABASE_URL
+     KEY 2 — Publishable key  (older dashboards call it "anon public")
+         Looks like : sb_publishable_...  OR  eyJhbGciOi...
+         Dart flag  : SUPABASE_ANON_KEY
+  3. RULES:
+     - The publishable key is SAFE to ship inside the app (it is
+       designed for client use; real protection comes from Section A4).
+     - NEVER copy the "service_role / secret" key anywhere. The app
+       does not need it. If it ever leaks, roll it: Project Settings
+       -> API -> "Roll" next to the key.
+
+A3. SWITCHES TO FLIP (3 toggles, all in dashboard)
+  1. Authentication -> Providers -> Email -> ENABLED (toggle ON).
+  2. Authentication -> Providers -> Email -> "Confirm email" -> ON.
+     (This makes sign-up send a 6-DIGIT CODE, which is exactly what
+     the app's OTP screen expects. If OFF, sign-up sends a magic
+     LINK instead and the app's OTP screen will never match.)
+  3. Authentication -> Sign In / Sign Up -> "Minimum password length"
+     is 6 by default. LEAVE it. (App cloud accounts need 6+ chars;
+     the code tells the user this automatically.)
+
+A4. SQL TO RUN (open: SQL Editor -> "New query" -> paste -> Run)
+  >>> GOOD NEWS: the app uses Supabase AUTH ONLY. NO tables are
+  >>> required for sign-up / sign-in / OTP. This section is testing
+  >>> helpers + one OPTIONAL future table. <<<
+
+  -- Q1. Confirm auth schema is healthy (expect: signed_up count row)
+  select count(*) as total_users from auth.users;
+
+  -- Q2. List your test users (to see who registered)
+  select id, email, confirmed_at, created_at
+  from auth.users
+  order by created_at desc;
+
+  -- Q3. DELETE a test user so you can re-test register with the
+  --     same email (register refuses duplicate emails, so you WILL
+  --     need this while testing):
+  delete from auth.users where email = 'youremail@gmail.com';
+
+  -- Q4 (OPTIONAL, FUTURE ONLY — app does NOT read this today):
+  --     a private per-user profile table with row-level security.
+  --     Skip unless you want cloud profiles later.
+  create table if not exists public.profiles (
+    id uuid primary key references auth.users(id) on delete cascade,
+    username text,
+    target_calories int default 2000,
+    updated_at timestamptz default now()
+  );
+  alter table public.profiles enable row level security;
+  create policy "users manage own profile"
+    on public.profiles for all
+    using (auth.uid() = id)
+    with check (auth.uid() = id);
+
+A5. ADD KEYS TO THE APP + RUN
+  # Run (dev):
+  flutter run \
+    --dart-define=GEMINI_API_KEY=AIza... \
+    --dart-define=SUPABASE_URL=https://xyzcompany.supabase.co \
+    --dart-define=SUPABASE_ANON_KEY=sb_publishable_...
+
+  # Build (release test APK):
+  flutter build apk --debug \
+    --dart-define=SUPABASE_URL=https://xyzcompany.supabase.co \
+    --dart-define=SUPABASE_ANON_KEY=sb_publishable_...
+
+  Without the two SUPABASE flags the app silently stays on the
+  demo mock account (user1@gmail.com / 1234). Nothing breaks.
+
+A6. VERIFY SIGN-UP / SIGN-IN (do in this order)
+  1. Fresh install, pass tester gate + onboarding until login.
+  2. REGISTER with a REAL email, password 6+ chars -> app goes to
+     OTP screen -> open inbox -> 6-digit code -> enter -> home.
+     (Check Supabase Auth -> Users: your email appears, confirmed.)
+  3. LOG OUT (Profile -> Logout) -> LOGIN with same email+password.
+  4. Kill app, reopen -> still logged in (session persists).
+  5. Wrong password -> clean "Wrong password" message, no crash.
+  6. Re-register same email -> "Account exists. Try Login."
+
+A7. SUPABASE TROUBLESHOOTING
+  "Cloud login not configured"   -> flags misspelled or missing.
+                                    Exact names: SUPABASE_URL,
+                                    SUPABASE_ANON_KEY.
+  No email arrives                 -> Confirm-email toggle OFF (see A3.2);
+                                    check spam; free tier uses shared
+                                    mailer (fine for testing).
+  "Password should be 6 chars"   -> by design; use 6+ characters.
+  "User already registered"      -> run Q3 above, then retry.
+  OTP invalid/expired            -> codes expire; request a fresh one
+                                    from the register screen.
+
+
+================================================================
+PART B — FIREBASE (analytics mirror, counts only)
+================================================================
+
+B1. CREATE PROJECT + APP
+  1. https://console.firebase.google.com -> Add project, name "hiw".
+     Decline Gemini-in-Firebase if offered (not needed).
+  2. Project home -> Add app -> Android.
+     - Android package name: com.valtooy.hiw   (EXACT match)
+     - Nickname: hiw-android
+     - SHA-1: leave BLANK (only needed for phone-auth/links;
+       Analytics works without it).
+  3. Download google-services.json when offered.
+
+B2. FILE TO PLACE (1 file, exact path)
+  Copy it here:
+     hiw/android/app/google-services.json
+  (next to build.gradle.kts — NOT inside src/. Rebuild after.)
+
+B3. KEYS TO TAKE: NONE. There is nothing to copy-paste for
+  Analytics — the json file carries the config, and the app code
+  already mirrors its 12 counted events automatically once the
+  file exists. No food names, chat text, or emails ever leave
+  the device (counts only + Profile opt-out switch).
+
+B4. VERIFY
+  1. flutter build apk --debug; install; FORCE-STOP once, cold start.
+  2. Use the app (scan, chat, open paywall) to fire events.
+  3. Firebase console -> Analytics -> DebugView = live same-day
+     events. Standard reports lag ~24h.
+  4. Without the json, everything still works local-only.
+
+
+================================================================
+PART C — SECURITY NOTES (audit done 2026-09-30, all fixed in app)
+================================================================
+  [FIXED] Android blocked HTTP traffic (usesCleartextTraffic=false).
+          Every endpoint the app uses is HTTPS.
+  [FIXED] Mock passwords were plaintext on-device -> now salted
+          SHA-256 (old entries auto-upgrade on next login).
+  [FIXED] OTP was printed into logs with the EmailJS payload ->
+          redacted; only the address is logged.
+  [OK]    No live keys in tracked code (verified by scan). Gemini key
+          lives ONLY in git-ignored ai_config.dart + your run flags.
+  [TODO-YOU] EmailJS dashboard -> restrict the public key
+          (f02ODuPvOUe5z1ICj) to your domains/origins. Public key is
+          safe to ship, but origin-lock it anyway.
+  [TODO-YOU] If the Gemini key in ai_config.dart was ever pasted
+          anywhere public: https://aistudio.google.com/apikey ->
+          delete it, make a new one, update your --dart-define.
+  [BY-DESIGN] Pro status + quotas are local-only (convenient, not
+          tamper-proof) until a server verify step is added later.
+          Tester codes are single-use server-bound (403 if shared).
+
+COMBINED DAILY COMMAND (everything on):
+  flutter run \
+    --dart-define=GEMINI_API_KEY=AIza... \
+    --dart-define=SUPABASE_URL=https://xyz.supabase.co \
+    --dart-define=SUPABASE_ANON_KEY=sb_publishable_...
+================================================================
