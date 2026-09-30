@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/user_api.dart';
 
@@ -363,13 +364,13 @@ class AppState {
         await UserApi.releaseTesterCode(code).timeout(
           const Duration(seconds: 3),
           onTimeout: () {
-            print('Logout API timeout - proceeding with local logout');
+            debugPrint('Logout API timeout - proceeding with local logout');
           },
         );
       }
     } catch (e) {
       // ⚠️ Ignore network errors, prioritize local logout
-      print('Logout API error: $e');
+      debugPrint('Logout API error: $e');
     }
     
     final prefs = await SharedPreferences.getInstance();

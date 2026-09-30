@@ -335,7 +335,6 @@ class _FoodScreenState extends State<FoodScreen> {
   Widget _nutritionCard() {
     final totals = _totalsForSelectedMeal();
     final t = HiwTheme.of(context);
-    final accent = Theme.of(context).primaryColor;
     final textColor =
         Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white;
     final subColor =
@@ -841,7 +840,7 @@ class _FoodScreenState extends State<FoodScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.water_drop_rounded,
+              const Icon(Icons.water_drop_rounded,
                   color: Colors.lightBlueAccent, size: 18),
               SizedBox(width: 6.w),
               Expanded(
@@ -897,6 +896,8 @@ class _FoodScreenState extends State<FoodScreen> {
                 onPressed: isMax
                     ? null
                     : () async {
+                        final messenger =
+                            ScaffoldMessenger.of(context);
                         final last = _waterStore.lastLoggedTime;
                         final now = DateTime.now();
 
@@ -908,27 +909,23 @@ class _FoodScreenState extends State<FoodScreen> {
 
                           if (success) {
                             _avatarStore.addStaminaFromWater();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      '💧 Water logged! Stamina increased'),
-                                  backgroundColor: Colors.blueAccent,
-                                ),
-                              );
-                            }
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    '💧 Water logged! Stamina increased'),
+                                backgroundColor: Colors.blueAccent,
+                              ),
+                            );
                           }
                         } else {
                           // ⏳ COOLDOWN
                           final remaining = 60 - now.difference(last).inMinutes;
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    '⏳ Wait $remaining minutes to drink again'),
-                              ),
-                            );
-                          }
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  '⏳ Wait $remaining minutes to drink again'),
+                            ),
+                          );
                         }
 
                         if (context.mounted) setState(() {});
@@ -989,7 +986,7 @@ class _FoodScreenState extends State<FoodScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.local_fire_department_rounded,
+                const Icon(Icons.local_fire_department_rounded,
                     color: Colors.orangeAccent, size: 16),
                 SizedBox(width: 5.w),
                 Expanded(

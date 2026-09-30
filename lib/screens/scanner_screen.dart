@@ -554,6 +554,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     AnalyticsService().log('scan_success');
 
     // Matched or low-confidence → shared result screen.
+    if (!mounted) return;
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => FoodResultScreen(

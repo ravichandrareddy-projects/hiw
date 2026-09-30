@@ -160,17 +160,24 @@ class _GenericAddonsScreenState extends State<GenericAddonsScreen> {
               ),
             ),
             SizedBox(height: 8.h),
-            ...addon.options.map((opt) {
-              return RadioListTile<String>(
-                value: opt.id,
-                groupValue: _values[addon.id],
-                onChanged: (v) => setState(() => _values[addon.id] = v),
-                title: Text(
-                  opt.label,
-                  style: TextStyle(color: ink),
-                ),
-              );
-            }),
+            RadioGroup<String>(
+              groupValue: _values[addon.id] as String?,
+              onChanged: (v) =>
+                  setState(() => _values[addon.id] = v),
+              child: Column(
+                children: [
+                  ...addon.options.map((opt) {
+                    return RadioListTile<String>(
+                      value: opt.id,
+                      title: Text(
+                        opt.label,
+                        style: TextStyle(color: ink),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
           ],
         ),
       ),

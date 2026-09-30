@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -32,9 +33,9 @@ class OtpService {
       // =================================================================
       //                 🐞 DEBUG OTP CODE 🐞
       // =================================================================
-      print('\n\n');
-      print('      �  YOUR OTP CODE IS:  $otp  👈');
-      print('\n\n');
+      debugPrint('\n\n');
+      debugPrint('      �  YOUR OTP CODE IS:  $otp  👈');
+      debugPrint('\n\n');
       // =================================================================
 
       
@@ -45,7 +46,7 @@ class OtpService {
       
       return true;
     } catch (e) {
-      print('Error sending OTP: $e');
+      debugPrint('Error sending OTP: $e');
       return false;
     }
   }
@@ -96,12 +97,12 @@ class OtpService {
     // 🔍 DIAGNOSTIC: Test DNS lookup
     try {
       final googleResult = await InternetAddress.lookup('google.com');
-      print('🌐 DNS Test (google.com): ${googleResult.isNotEmpty ? "SUCCESS" : "EMPTY"}');
+      debugPrint('🌐 DNS Test (google.com): ${googleResult.isNotEmpty ? "SUCCESS" : "EMPTY"}');
       
       final emailJSResult = await InternetAddress.lookup('api.emailjs.com');
-      print('🌐 DNS Test (api.emailjs.com): ${emailJSResult.isNotEmpty ? "SUCCESS" : "EMPTY"}');
+      debugPrint('🌐 DNS Test (api.emailjs.com): ${emailJSResult.isNotEmpty ? "SUCCESS" : "EMPTY"}');
     } catch (e) {
-      print('⚠️ DNS Diagnostic Failed: $e');
+      debugPrint('⚠️ DNS Diagnostic Failed: $e');
     }
 
     final body = json.encode({
@@ -118,7 +119,7 @@ class OtpService {
       },
     });
 
-    print('📦 Sending to EmailJS: $body');
+    debugPrint('📦 Sending to EmailJS: $body');
 
     final response = await http.post(
       url,
@@ -130,7 +131,7 @@ class OtpService {
     );
 
     if (response.statusCode != 200) {
-      print('❌ EmailJS Error: ${response.body}');
+      debugPrint('❌ EmailJS Error: ${response.body}');
       throw Exception('Failed to send email: ${response.body}');
     }
   }

@@ -1,19 +1,10 @@
 //purchase screen
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../themes/hiw_theme.dart';
 
 class PurchasesScreen extends StatelessWidget {
   const PurchasesScreen({super.key});
-
-  Future<void> _openYt() async {
-    final url = Uri.parse(
-        'https://www.youtube.com/results?search_query=easy+vegetable+recipe+healthy');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

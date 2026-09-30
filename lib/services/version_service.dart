@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class VersionService {
@@ -31,7 +32,7 @@ class VersionService {
     await prefs.setInt(_kMinor, minor);
     await prefs.setInt(_kPatch, patch);
     
-    print("VERSION UPDATED: ${getVersionStringSync(major, minor, patch)}");
+    debugPrint("VERSION UPDATED: ${getVersionStringSync(major, minor, patch)}");
   }
 
   static Future<String> getVersionString() async {
@@ -46,7 +47,6 @@ class VersionService {
     // Format: v0.01.10 (using zero padding for minor/patch if needed or direct as requested)
     // The user example: v0.0.03, v0.0.04 ... v0.01.10
     // I will use 2-digit padding for minor and patch to match "v0.01.10" aesthetic
-    String majStr = "$major";
     String minStr = minor < 10 ? "0$minor" : "$minor";
     String patStr = patch < 10 ? "0$patch" : "$patch";
     

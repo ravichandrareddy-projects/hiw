@@ -51,8 +51,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (mounted) {
       setState(() {
-        _username = (results[0] as String?) ?? 'User';
-        _testerCode = results[1] as String?;
+        _username = results[0] ?? 'User';
+        _testerCode = results[1];
         _targetCalories = NutritionStore().dailyTargetCalories;
         _splashSeconds = splash;
         _isLoading = false;
@@ -572,7 +572,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     HapticFeedback.heavyImpact();
     await AppState.logout();
-    if (!mounted) return;
+    if (!context.mounted) return;
 
     Navigator.pushAndRemoveUntil(
       context,
@@ -610,9 +610,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
-    if (confirm != true || !mounted) return;
+    if (confirm != true || !context.mounted) return;
     await AppState.resetPersonalization();
-    if (!mounted) return;
+    if (!context.mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const AppGate()),
@@ -766,7 +766,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => PaywallScreen(
+        builder: (_) => const PaywallScreen(
             feature: 'This lives in HIW Pro. Free stays generous.'),
       ),
     );

@@ -53,20 +53,20 @@ class BillingService {
         annual ? PlanConfig.skuAnnual : PlanConfig.skuMonthly;
     try {
       if (!await storeAvailable()) {
-        return _testGrant();
+        return await _testGrant();
       }
       final resp = await InAppPurchase.instance
           .queryProductDetails({sku});
       if (resp.productDetails.isEmpty) {
         // Product not configured in Play Console yet → test path.
-        return _testGrant();
+        return await _testGrant();
       }
       final param = PurchaseParam(
           productDetails: resp.productDetails.first);
       final ok = await InAppPurchase.instance.buyNonConsumable(
         purchaseParam: param,
       );
-      if (!ok) return _testGrant();
+      if (!ok) return await _testGrant();
       // Real purchase completes via purchaseStream listener above.
       await Future.delayed(const Duration(seconds: 2));
       return (await EntitlementStore.current()).isPro;

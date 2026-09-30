@@ -39,6 +39,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
       final ok = await BillingService.buy(_annual);
       if (!mounted) return;
       await _refreshStatus();
+      if (!mounted) return;
       if (ok && _status != null && _status!.isPro) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Welcome to HIW Pro 🎉')),
@@ -69,13 +70,13 @@ class _PaywallScreenState extends State<PaywallScreen> {
       await EntitlementStore.grantPro(
         source: ProSource.trial,
         expiresAt: DateTime.now()
-            .add(Duration(days: PlanConfig.trialDays)),
+            .add(const Duration(days: PlanConfig.trialDays)),
       );
       await _refreshStatus();
       if (!mounted) return;
       AnalyticsService().log('trial_start');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
             content: Text(
                 'Trial started — ${PlanConfig.trialDays} days of Pro 🎉')),
       );

@@ -309,8 +309,6 @@ class _CyberArcsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    const startAngle = -pi / 2;
-    const sweepFull = 2 * pi;
 
     // Track 1: Outer Calorie Arc (Cyan/Emerald)
     _drawArcTrack(canvas, center,

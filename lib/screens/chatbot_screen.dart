@@ -301,6 +301,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         lowerText.contains("not good") ||
         lowerText.contains("im bad") ||
         lowerText.contains("unhappy")) {
+      if (!mounted) return;
       Navigator.push(
         context,
         MaterialPageRoute(

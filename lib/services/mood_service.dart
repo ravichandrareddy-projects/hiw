@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/ai_config.dart';
 
@@ -57,7 +58,7 @@ class MoodService {
           .timeout(
         const Duration(seconds: 25),
         onTimeout: () {
-          print('⚠️ MOOD SERVICE: HTTP request timeout');
+          debugPrint('⚠️ MOOD SERVICE: HTTP request timeout');
           throw Exception('Request timeout');
         },
       );
@@ -67,8 +68,8 @@ class MoodService {
       }
 
       if (response.statusCode != 200) {
-        print("MOOD SERVICE ERROR: ${response.statusCode}");
-        print("BODY: ${response.body}");
+        debugPrint("MOOD SERVICE ERROR: ${response.statusCode}");
+        debugPrint("BODY: ${response.body}");
         return "⚠️ Mood support is temporarily unavailable. Error ${response.statusCode}.";
       }
 
@@ -86,7 +87,7 @@ class MoodService {
 
       return "I'm here for you. How can I help? 💙";
     } catch (e) {
-      print("MOOD SERVICE EXCEPTION: $e");
+      debugPrint("MOOD SERVICE EXCEPTION: $e");
       return "⚠️ Connection error. Please try again.";
     }
   }

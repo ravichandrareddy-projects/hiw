@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -72,7 +73,7 @@ class MoodCheckScheduler {
     await prefs.setStringList('today_mood_checks', completedChecks);
     
     // Trigger callback if set
-    print('🕐 Mood check triggered for hour: $checkHour');
+    debugPrint('🕐 Mood check triggered for hour: $checkHour');
     _onMoodCheckTriggered?.call();
   }
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class UserApi {
@@ -116,7 +117,7 @@ class UserApi {
     );
 
     if (response.statusCode != 200) {
-      print("❌ Password Reset Error [${response.statusCode}]: ${response.body}");
+      debugPrint("❌ Password Reset Error [${response.statusCode}]: ${response.body}");
       throw Exception("Password reset failed (${response.statusCode}): ${response.body}");
     }
   }

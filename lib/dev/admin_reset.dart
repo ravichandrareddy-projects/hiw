@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../core/history_store.dart';
 import '../core/nutrition_store.dart';
 
@@ -11,12 +12,12 @@ class AdminReset {
     // await MonthStore().clearAll();
     // await AvatarStore().reset();
 
-    print("🧹 DEV RESET: FULL RESET DONE");
+    debugPrint("🧹 DEV RESET: FULL RESET DONE");
   }
 
   /// 🧹 HISTORY ONLY
   static Future<void> historyOnly() async {
     await HistoryStore().clearHistory();
-    print("🧹 DEV RESET: HISTORY RESET DONE");
+    debugPrint("🧹 DEV RESET: HISTORY RESET DONE");
   }
 }

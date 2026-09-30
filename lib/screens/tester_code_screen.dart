@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/app_state.dart';
 import '../services/user_api.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../themes/hiw_theme.dart';
 
 class TesterCodeScreen extends StatefulWidget {

@@ -33,7 +33,7 @@ class FastingEngine {
     return prefs.getInt(_lenKey) ?? 16 * 60;
   }
 
-  static Future<bool> isActive() async => activeStart() != null;
+  static Future<bool> isActive() async => await activeStart() != null;
 
   static Future<void> start(Duration length) async {
     final prefs = await SharedPreferences.getInstance();

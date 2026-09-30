@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/ai_config.dart';
 
@@ -62,7 +63,7 @@ class GeminiService {
       }
 
       if (response.statusCode != 200) {
-        print("GEMINI ERROR (${response.statusCode}): ${response.body}");
+        debugPrint("GEMINI ERROR (${response.statusCode}): ${response.body}");
         return "⚠️ Foodity is temporarily unavailable. Error ${response.statusCode}.";
       }
 
@@ -80,7 +81,7 @@ class GeminiService {
 
       return "🤔 Foodity is thinking, but couldn't process the response.";
     } catch (e) {
-      print("GEMINI EXCEPTION: $e");
+      debugPrint("GEMINI EXCEPTION: $e");
       return "⚠️ Connection error to Gemini Cloud.";
     }
   }

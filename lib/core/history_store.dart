@@ -78,16 +78,13 @@ class HistoryStore {
     double totalCalories = 0;
     double totalProtein = 0;
     int healthyCount = 0;
-    int heavyCount = 0;
 
     for (var e in entries) {
       totalCalories += e.food.calories;
       totalProtein += e.food.protein;
-      
-      // Logic: > 500 cal is "Heavy", else "Healthy" (Simplification)
-      if (e.food.calories > 500) {
-        heavyCount++;
-      } else {
+
+      // Logic: <= 500 cal counts as "Healthy" (simplification)
+      if (e.food.calories <= 500) {
         healthyCount++;
       }
     }
