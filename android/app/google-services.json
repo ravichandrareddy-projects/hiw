@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "357239176459",
+    "project_id": "hiw-63c08",
+    "storage_bucket": "hiw-63c08.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:357239176459:android:5c8890ce27ac62427ef60e",
+        "android_client_info": {
+          "package_name": "com.valtooy.hiw"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQwzOIR0xogrSiXtDeKlVkJoSdhsi9hiQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

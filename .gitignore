@@ -37,3 +37,14 @@ Thumbs.db
 
 # Secrets
 .env
+
+# Temporary root test captures
+/*.png
+/*.jpg
+/*.jpeg
+/*.mp4
+
+# Backups & experiments
+.backup_previous_version/
+hiw-intro/
+

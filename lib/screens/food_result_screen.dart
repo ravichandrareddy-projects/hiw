@@ -12,6 +12,7 @@ import '../core/nutrition_store.dart';
 import '../core/history_store.dart';
 import '../core/health_engine.dart';
 import '../core/addon_nutrition_rules.dart';
+import '../core/serving_catalog.dart';
 import '../themes/hiw_theme.dart';
 import '../widgets/hiw_card.dart';
 
@@ -38,6 +39,10 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
   final Set<String> _addons = {};
   bool _isSaving = false;
   String? _savedKey;
+
+  late FoodServingSpec _servingSpec;
+  int _selectedCount = 1;
+  ServingSizeOption? _selectedSize;
 
   // Common add-on ids → try engine rules first, fallback table below.
   static const List<Map<String, String>> kAddonChoices = [
@@ -66,8 +71,20 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
   @override
   void initState() {
     super.initState();
-    _quantity = widget.initial.quantity.clamp(0.25, 3.0);
-    _weightG = widget.initial.servingWeightG;
+    _servingSpec = ServingCatalog.getSpec(
+      widget.initial.displayName,
+      record: widget.initial.record,
+    );
+    _selectedCount = _servingSpec.countOptions.first;
+    _selectedSize = _servingSpec.sizeOptions.firstWhere(
+      (s) => (s.multiplier - 1.0).abs() < 0.05,
+      orElse: () => _servingSpec.sizeOptions.first,
+    );
+
+    _quantity = (_selectedCount * _selectedSize!.multiplier).clamp(0.25, 6.0);
+    _weightG = widget.initial.servingWeightG > 0
+        ? widget.initial.servingWeightG
+        : (_selectedSize!.defaultWeightG * _selectedCount);
     _meal = widget.initial.mealType;
     _comboQty = widget.initial.components
         .map((e) => e.quantity.clamp(0.25, 3.0))
@@ -114,24 +131,33 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
       weightG: _weightG,
       mealType: _meal,
     );
-    // Dynamic add-on stacking (no static per-combo values).
+    // Dynamic add-on stacking from contextual catalog & rules
     var cal = r.calories;
     var p = r.protein, c = r.carbs, f = r.fats, fib = r.fiber;
     for (final id in _addons) {
-      final rule = addonNutritionRules[id];
-      if (rule != null) {
-        cal += rule.calories;
-        p += rule.protein;
-        c += rule.carbs;
-        f += rule.fats;
-        fib += rule.fiber;
-      } else if (kAddonFallback.containsKey(id)) {
-        final v = kAddonFallback[id]!;
-        cal += v[0].round();
-        p += v[1];
-        c += v[2];
-        f += v[3];
-        fib += v[4];
+      final spec = _servingSpec.contextualAddons.where((a) => a.id == id).firstOrNull;
+      if (spec != null) {
+        cal += spec.calories;
+        p += spec.protein;
+        c += spec.carbs;
+        f += spec.fats;
+        fib += spec.fiber;
+      } else {
+        final rule = addonNutritionRules[id];
+        if (rule != null) {
+          cal += rule.calories;
+          p += rule.protein;
+          c += rule.carbs;
+          f += rule.fats;
+          fib += rule.fiber;
+        } else if (kAddonFallback.containsKey(id)) {
+          final v = kAddonFallback[id]!;
+          cal += v[0].round();
+          p += v[1];
+          c += v[2];
+          f += v[3];
+          fib += v[4];
+        }
       }
     }
     return FoodRecognitionResult(
@@ -158,10 +184,43 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
     );
   }
 
+  String get _portionSummary {
+    if (_selectedSize != null) {
+      final unit = _selectedCount == 1 ? _servingSpec.unitName : (_servingSpec.unitName.endsWith('s') ? _servingSpec.unitName : '${_servingSpec.unitName}s');
+      return '$_selectedCount $unit • $_weightG g';
+    }
+    return '${_quantity.toStringAsFixed(1)}× • $_weightG g';
+  }
+
+  String get _portionSubtitle {
+    final countLabel = '$_selectedCount ${_selectedCount == 1 ? _servingSpec.unitName : (_servingSpec.unitName.endsWith('s') ? _servingSpec.unitName : '${_servingSpec.unitName}s')}';
+    if (_selectedSize != null) {
+      return '$countLabel (${_selectedSize!.label}) • $_weightG g';
+    }
+    return '$countLabel • $_weightG g';
+  }
+
+  String get _addonsSubtitle {
+    if (_addons.isEmpty) {
+      return _servingSpec.contextualAddons.isNotEmpty
+          ? _servingSpec.contextualAddons.take(3).map((a) => a.label.split(' (').first).join(', ')
+          : 'Ghee, Chutney, Sambar...';
+    }
+    final labels = _addons.map((id) {
+      final spec = _servingSpec.contextualAddons.where((a) => a.id == id).firstOrNull;
+      if (spec != null) return spec.label.split(' (').first;
+      final fb = kAddonChoices.where((a) => a['id'] == id).firstOrNull;
+      return fb?['label'] ?? id;
+    }).toList();
+    return labels.join(', ');
+  }
+
   Future<void> _openPortionSheet() async {
     final t = HiwTheme.of(context);
-    double q = _quantity;
+    int count = _selectedCount;
+    ServingSizeOption? size = _selectedSize;
     double w = _weightG.toDouble();
+
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -179,105 +238,228 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
                     BorderRadius.vertical(top: Radius.circular(24.r)),
                 border: Border.all(color: t.cardStroke),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 44.w,
-                    height: 4.h,
-                    decoration: BoxDecoration(
-                      color: t.mutedColor.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(4.r),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44.w,
+                        height: 4.h,
+                        decoration: BoxDecoration(
+                          color: t.mutedColor.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(4.r),
+                        ),
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 14.h),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Portion Size',
+                    SizedBox(height: 14.h),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Portion & Serving Size',
+                                style: TextStyle(
+                                  color: t.inkColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 17.sp,
+                                ),
+                              ),
+                              SizedBox(height: 2.h),
+                              Text(
+                                _live.displayName,
+                                style: TextStyle(
+                                  color: t.mutedColor,
+                                  fontSize: 13.sp,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 10.w, vertical: 5.h),
+                          decoration: BoxDecoration(
+                            color: t.accentColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10.r),
+                            border: Border.all(
+                                color: t.accentColor.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            '${w.round()} g',
+                            style: TextStyle(
+                              color: t.accentColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.sp,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16.h),
+
+                    // 1. COUNT SELECTION (e.g. 1, 2, 3... dosas or pieces)
+                    Text(
+                      _servingSpec.countLabel,
                       style: TextStyle(
                         color: t.inkColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 17.sp,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14.sp,
                       ),
                     ),
-                  ),
-                  SizedBox(height: 12.h),
-                  Row(
-                    children: [
-                      Text('Quantity',
-                          style: TextStyle(
-                              color: t.mutedColor, fontSize: 14.sp)),
-                      const Spacer(),
-                      _stepBtn(Icons.remove_rounded, () {
-                        if (q > 0.25) {
-                          setSheet(() => q =
-                              double.parse((q - 0.25).toStringAsFixed(2)));
-                        }
-                      }, t),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12.w),
-                        child: Text('${q.toStringAsFixed(2)}×',
-                            style: TextStyle(
-                                color: t.inkColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16.sp)),
+                    SizedBox(height: 8.h),
+                    Wrap(
+                      spacing: 8.w,
+                      runSpacing: 8.h,
+                      children: _servingSpec.countOptions.map((c) {
+                        final isSel = count == c;
+                        final label = '$c ${_servingSpec.unitName}${c > 1 && !_servingSpec.unitName.endsWith('s') ? 's' : ''}';
+                        return ChoiceChip(
+                          label: Text(label),
+                          selected: isSel,
+                          onSelected: (val) {
+                            if (val) {
+                              setSheet(() {
+                                count = c;
+                                final base = size?.defaultWeightG ?? _servingSpec.baseWeightG;
+                                w = (base * count).toDouble().clamp(30.0, 1000.0);
+                              });
+                            }
+                          },
+                          selectedColor: t.accentColor.withValues(alpha: 0.2),
+                          backgroundColor: t.cardBackground,
+                          labelStyle: TextStyle(
+                            color: isSel ? t.accentColor : t.inkColor,
+                            fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                            fontSize: 13.sp,
+                          ),
+                          side: BorderSide(
+                            color: isSel ? t.accentColor : t.cardStroke,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    SizedBox(height: 16.h),
+
+                    // 2. SIZE SELECTION (e.g. Small / Medium / Large / Paper)
+                    if (_servingSpec.sizeOptions.isNotEmpty) ...[
+                      Text(
+                        'Serving Size / Variety',
+                        style: TextStyle(
+                          color: t.inkColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14.sp,
+                        ),
                       ),
-                      _stepBtn(Icons.add_rounded, () {
-                        if (q < 3.0) {
-                          setSheet(() => q =
-                              double.parse((q + 0.25).toStringAsFixed(2)));
-                        }
-                      }, t),
+                      SizedBox(height: 8.h),
+                      Wrap(
+                        spacing: 8.w,
+                        runSpacing: 8.h,
+                        children: _servingSpec.sizeOptions.map((s) {
+                          final isSel = size?.label == s.label;
+                          return ChoiceChip(
+                            label: Text(s.label),
+                            selected: isSel,
+                            onSelected: (val) {
+                              if (val) {
+                                setSheet(() {
+                                  size = s;
+                                  w = (s.defaultWeightG * count).toDouble().clamp(30.0, 1000.0);
+                                });
+                              }
+                            },
+                            selectedColor: t.accentColor.withValues(alpha: 0.2),
+                            backgroundColor: t.cardBackground,
+                            labelStyle: TextStyle(
+                              color: isSel ? t.accentColor : t.inkColor,
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                              fontSize: 13.sp,
+                            ),
+                            side: BorderSide(
+                              color: isSel ? t.accentColor : t.cardStroke,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      SizedBox(height: 16.h),
                     ],
-                  ),
-                  SizedBox(height: 12.h),
-                  Row(
-                    children: [
-                      Text('Weight  ${w.round()} g',
+
+                    // 3. FINE-TUNE WEIGHT SLIDER
+                    Row(
+                      children: [
+                        Text(
+                          'Fine-Tune Weight',
                           style: TextStyle(
-                              color: t.mutedColor, fontSize: 14.sp)),
-                    ],
-                  ),
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: t.accentColor,
-                      thumbColor: t.accentColor,
+                            color: t.inkColor,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14.sp,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${w.round()} g',
+                          style: TextStyle(
+                            color: t.mutedColor,
+                            fontSize: 13.sp,
+                          ),
+                        ),
+                      ],
                     ),
-                    child: Slider(
-                      min: 50,
-                      max: 500,
-                      divisions: 45,
-                      value: w,
-                      onChanged: (v) => setSheet(() => w = v),
-                    ),
-                  ),
-                  SizedBox(height: 8.h),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: t.accentColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14.r)),
-                        padding: EdgeInsets.symmetric(vertical: 14.h),
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        activeTrackColor: t.accentColor,
+                        thumbColor: t.accentColor,
                       ),
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Save / Done',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: Slider(
+                        min: 30,
+                        max: 800,
+                        divisions: 77,
+                        value: w.clamp(30.0, 800.0),
+                        onChanged: (v) => setSheet(() => w = v),
+                      ),
                     ),
-                  ),
-                ],
+                    SizedBox(height: 10.h),
+
+                    // DONE BUTTON
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: t.accentColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14.r)),
+                          padding: EdgeInsets.symmetric(vertical: 14.h),
+                        ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Apply Portion',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
     );
+
     setState(() {
-      _quantity = q;
+      _selectedCount = count;
+      _selectedSize = size;
       _weightG = w.round();
+      final base = _servingSpec.baseWeightG > 0 ? _servingSpec.baseWeightG : 150;
+      _quantity = (_weightG / base).clamp(0.2, 10.0);
       _live = _recalc();
     });
   }
@@ -301,6 +483,18 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
   Future<void> _openAddonsSheet() async {
     final t = HiwTheme.of(context);
     final selected = Set<String>.from(_addons);
+    final addonsList = _servingSpec.contextualAddons.isNotEmpty
+        ? _servingSpec.contextualAddons
+        : kAddonChoices.map((a) => CatalogAddonOption(
+              id: a['id']!,
+              label: a['label']!,
+              calories: kAddonFallback[a['id']]?[0].round() ?? 40,
+              protein: kAddonFallback[a['id']]?[1] ?? 1.0,
+              carbs: kAddonFallback[a['id']]?[2] ?? 3.0,
+              fats: kAddonFallback[a['id']]?[3] ?? 2.0,
+              fiber: kAddonFallback[a['id']]?[4] ?? 0.5,
+            )).toList();
+
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -318,88 +512,114 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
                     BorderRadius.vertical(top: Radius.circular(24.r)),
                 border: Border.all(color: t.cardStroke),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 44.w,
-                    height: 4.h,
-                    decoration: BoxDecoration(
-                      color: t.mutedColor.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(4.r),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44.w,
+                        height: 4.h,
+                        decoration: BoxDecoration(
+                          color: t.mutedColor.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(4.r),
+                        ),
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 14.h),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Add-ons (Optional)',
+                    SizedBox(height: 14.h),
+                    Text(
+                      'Add-ons & Sides',
                       style: TextStyle(
                         color: t.inkColor,
                         fontWeight: FontWeight.bold,
                         fontSize: 17.sp,
                       ),
                     ),
-                  ),
-                  SizedBox(height: 10.h),
-                  ...kAddonChoices.map((a) {
-                    final id = a['id']!;
-                    final on = selected.contains(id);
-                    return GestureDetector(
-                      onTap: () => setSheet(() => on
-                          ? selected.remove(id)
-                          : selected.add(id)),
-                      child: Container(
-                        margin: EdgeInsets.only(bottom: 8.h),
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 14.w, vertical: 12.h),
-                        decoration: BoxDecoration(
-                          color: on
-                              ? t.accentColor.withValues(alpha: 0.14)
-                              : t.cardBackground,
-                          borderRadius: BorderRadius.circular(14.r),
-                          border: Border.all(
+                    SizedBox(height: 2.h),
+                    Text(
+                      'Contextual options for ${_live.displayName}',
+                      style: TextStyle(
+                        color: t.mutedColor,
+                        fontSize: 13.sp,
+                      ),
+                    ),
+                    SizedBox(height: 14.h),
+                    ...addonsList.map((a) {
+                      final on = selected.contains(a.id);
+                      return GestureDetector(
+                        onTap: () => setSheet(() => on
+                            ? selected.remove(a.id)
+                            : selected.add(a.id)),
+                        child: Container(
+                          margin: EdgeInsets.only(bottom: 8.h),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 14.w, vertical: 12.h),
+                          decoration: BoxDecoration(
                             color: on
-                                ? t.accentColor
-                                : t.cardStroke,
+                                ? t.accentColor.withValues(alpha: 0.14)
+                                : t.cardBackground,
+                            borderRadius: BorderRadius.circular(14.r),
+                            border: Border.all(
+                              color: on
+                                  ? t.accentColor
+                                  : t.cardStroke,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                on
+                                    ? Icons.check_circle_rounded
+                                    : Icons.add_circle_outline_rounded,
+                                color: on ? t.accentColor : t.mutedColor,
+                                size: 22.sp,
+                              ),
+                              SizedBox(width: 12.w),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      a.label,
+                                      style: TextStyle(
+                                          color: t.inkColor,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14.sp),
+                                    ),
+                                    SizedBox(height: 2.h),
+                                    Text(
+                                      '+${a.calories} kcal  •  P: ${a.protein}g  •  F: ${a.fats}g',
+                                      style: TextStyle(
+                                          color: t.mutedColor,
+                                          fontSize: 11.5.sp),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              on
-                                  ? Icons.check_circle_rounded
-                                  : Icons.add_circle_outline_rounded,
-                              color: on ? t.accentColor : t.mutedColor,
-                            ),
-                            SizedBox(width: 10.w),
-                            Text(a['label']!,
-                                style: TextStyle(
-                                    color: t.inkColor,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14.sp)),
-                          ],
+                      );
+                    }),
+                    SizedBox(height: 12.h),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: t.accentColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14.r)),
+                          padding: EdgeInsets.symmetric(vertical: 14.h),
                         ),
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Save Add-ons',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
-                    );
-                  }),
-                  SizedBox(height: 8.h),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: t.accentColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14.r)),
-                        padding: EdgeInsets.symmetric(vertical: 14.h),
-                      ),
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Save / Done',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -694,11 +914,13 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
                             child: Text(
                               _live.isCombo
                                   ? '${_live.components.length} foods • combined'
-                                  : '${_quantity.toStringAsFixed(2)}× • $_weightG g',
+                                  : _portionSummary,
                               style: TextStyle(
                                   color: t.inkColor,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 12.sp),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -816,13 +1038,13 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(Icons.soup_kitchen_outlined,
                         color: t.mutedColor),
-                    title: Text('Portion Size',
+                    title: Text('Portion & Serving',
                         style: TextStyle(
                             color: t.inkColor,
                             fontWeight: FontWeight.w700,
                             fontSize: 14.sp)),
                     subtitle: Text(
-                      '${_quantity.toStringAsFixed(2)} bowl ($_weightG g)',
+                      _portionSubtitle,
                       style: TextStyle(
                           color: t.mutedColor, fontSize: 13.sp),
                     ),
@@ -848,15 +1070,13 @@ class _FoodResultScreenState extends State<FoodResultScreen> {
                       child: Icon(Icons.add_rounded,
                           color: t.inkColor, size: 18.sp),
                     ),
-                    title: Text('Add-ons (Optional)',
+                    title: Text('Add-ons & Sides',
                         style: TextStyle(
                             color: t.inkColor,
                             fontWeight: FontWeight.w700,
                             fontSize: 14.sp)),
                     subtitle: Text(
-                      _addons.isEmpty
-                          ? 'Raita, Extra Chicken, Ghee...'
-                          : _addons.join(', '),
+                      _addonsSubtitle,
                       style: TextStyle(
                           color: t.mutedColor, fontSize: 13.sp),
                       maxLines: 1,

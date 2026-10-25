@@ -15,10 +15,12 @@ import 'food_result_screen.dart';
 class FoodTextSearchScreen extends StatefulWidget {
   final MealType initialMeal;
   final String? initialQuery; // 🆕 barcode flow pre-fills the OFF name
+  final VoidCallback? onScanTap;
   const FoodTextSearchScreen({
     super.key,
     this.initialMeal = MealType.lunch,
     this.initialQuery,
+    this.onScanTap,
   });
 
   @override
@@ -124,7 +126,13 @@ class _FoodTextSearchScreenState extends State<FoodTextSearchScreen> {
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
+                    onTap: () {
+                      if (widget.onScanTap != null) {
+                        widget.onScanTap!();
+                      } else {
+                        Navigator.of(context).pop();
+                      }
+                    },
                     child: Container(
                       padding: EdgeInsets.all(10.r),
                       decoration: BoxDecoration(
@@ -153,8 +161,13 @@ class _FoodTextSearchScreenState extends State<FoodTextSearchScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         GestureDetector(
-                          onTap: () =>
-                              Navigator.of(context).pop(),
+                          onTap: () {
+                            if (widget.onScanTap != null) {
+                              widget.onScanTap!();
+                            } else {
+                              Navigator.of(context).pop();
+                            }
+                          },
                           child: Container(
                             padding: EdgeInsets.symmetric(
                                 horizontal: 18.w,

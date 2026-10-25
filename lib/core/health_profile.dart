@@ -191,6 +191,6 @@ String dietLabel(DietPreference d) {
     case DietPreference.jain:
       return 'Jain';
     case DietPreference.noPreference:
-      return 'No Preference';
+      return 'Both / No Restriction';
   }
 }

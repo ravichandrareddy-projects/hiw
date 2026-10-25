@@ -116,6 +116,36 @@ class FoodNutritionRecord {
   }
 }
 
+class FoodCategoryMeta {
+  final String id;
+  final String name;
+  final String country;
+  final String flag;
+  final int count;
+  final String description;
+  final String asset;
+
+  const FoodCategoryMeta({
+    required this.id,
+    required this.name,
+    required this.country,
+    required this.flag,
+    required this.count,
+    required this.description,
+    required this.asset,
+  });
+
+  factory FoodCategoryMeta.fromJson(Map<String, dynamic> json) => FoodCategoryMeta(
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        country: json['country'] as String? ?? '',
+        flag: json['flag'] as String? ?? '🍽️',
+        count: (json['count'] as num?)?.toInt() ?? 0,
+        description: json['description'] as String? ?? '',
+        asset: json['asset'] as String? ?? '',
+      );
+}
+
 class FoodNutritionDatabase {
   static final FoodNutritionDatabase _instance = FoodNutritionDatabase._internal();
   factory FoodNutritionDatabase() => _instance;
@@ -123,16 +153,24 @@ class FoodNutritionDatabase {
 
   final List<FoodNutritionRecord> _records = [];
   final Map<String, FoodNutritionRecord> _exactIndex = {};
+  final List<FoodCategoryMeta> _categories = [];
+  final Set<String> _loadedCategoryIds = {};
   bool _isLoaded = false;
 
   bool get isLoaded => _isLoaded;
   int get count => _records.length;
   List<FoodNutritionRecord> get records => List.unmodifiable(_records);
+  List<FoodCategoryMeta> get categories => List.unmodifiable(_categories);
+  Set<String> get loadedCategoryIds => Set.unmodifiable(_loadedCategoryIds);
+  int get totalDatabaseCount => _categories.fold(0, (sum, c) => sum + c.count);
 
-  /// Load database from bundled JSON asset
+  bool isCategoryLoaded(String categoryId) => _loadedCategoryIds.contains(categoryId);
+
+  /// Load database from bundled JSON asset (fast boot) + category metadata
   Future<void> init() async {
     if (_isLoaded) return;
     try {
+      // 1. Instant boot: Load curated primary database
       final jsonString = await rootBundle.loadString('assets/food_nutrition_db.json');
       final List<dynamic> list = json.decode(jsonString);
       _records.clear();
@@ -146,9 +184,62 @@ class FoodNutritionDatabase {
         }
       }
       _isLoaded = true;
+
+      // 2. Load categories metadata
+      await loadCategoriesMeta();
     } catch (e) {
       // Fallback if asset loading fails or in test environments
       _isLoaded = false;
+    }
+  }
+
+  /// Load categories metadata from assets/food_data/categories_meta.json
+  Future<void> loadCategoriesMeta() async {
+    try {
+      final metaStr = await rootBundle.loadString('assets/food_data/categories_meta.json');
+      final List<dynamic> metaList = json.decode(metaStr);
+      _categories.clear();
+      for (final m in metaList) {
+        if (m is Map<String, dynamic>) {
+          _categories.add(FoodCategoryMeta.fromJson(m));
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Dynamically loads a category (e.g. 'india', 'usa', 'italy', 'japan')
+  Future<bool> loadCategory(String categoryId) async {
+    if (_loadedCategoryIds.contains(categoryId)) return true;
+
+    String assetPath = 'assets/food_data/$categoryId.json';
+    try {
+      final jsonStr = await rootBundle.loadString(assetPath);
+      final List<dynamic> list = json.decode(jsonStr);
+
+      for (final item in list) {
+        if (item is Map<String, dynamic>) {
+          final record = FoodNutritionRecord.fromJson(item);
+          final key = record.name.toLowerCase().trim();
+          if (!_exactIndex.containsKey(key)) {
+            _records.add(record);
+            _exactIndex[key] = record;
+          }
+        }
+      }
+      _loadedCategoryIds.add(categoryId);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Loads all categories on demand or in background
+  Future<void> loadAllCategories() async {
+    if (_categories.isEmpty) {
+      await loadCategoriesMeta();
+    }
+    for (final cat in _categories) {
+      await loadCategory(cat.id);
     }
   }
 

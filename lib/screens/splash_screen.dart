@@ -1,15 +1,16 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../core/app_state.dart';
 import '../themes/hiw_theme.dart';
 
-/// HIW liquid intro:
-/// - H + W in dark green with a liquid highlight that flows down,
-///   reverses up, and repeats until both letters stand filled.
-/// - I in water blue drops from the top once the flow completes.
-/// - Total time comes from Settings → Intro timing (1–10s, TEMPORARY).
+/// Clean Minimalist HIW Intro:
+/// - 0.0s - 1.0s: App logo is in exact center (matching native launch size 90x90)
+/// - 1.0s - 1.8s: Logo glides upward slowly and smoothly using easeInOutCubic (no jiggle/shake)
+/// - 1.4s - 2.0s: H - I - W letters gently ease in directly under logo
+/// - 1.9s - 2.4s: "HEALTH IS" fades in smoothly
+/// - 2.3s - 3.7s: Tumbler slides: WEALTH ↑ -> WISDOM ↑ -> WELLNESS ↑ -> WIN 🏆
+/// - 3.7s - 4.6s: WIN 🏆 rests settled in gold
+/// - 4.6s - 5.0s: Clean, smooth fade exit into main app (zero side-slide lag)
 class SplashScreen extends StatefulWidget {
   final VoidCallback onDone;
 
@@ -20,38 +21,60 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  static const leafGreen = Color(0xFF0B6B3A);
-  static const waterBlue = Color(0xFF00B0FF);
+    with TickerProviderStateMixin {
+  late AnimationController _master;
+  late AnimationController _wordController;
 
-  /// Number of down-up liquid passes before the letters settle.
-  static const flowPasses = 5;
-
-  AnimationController? _master;
-  Timer? _timer;
+  static const List<String> _wWords = ['Wealth', 'Wisdom', 'Wellness', 'WIN'];
+  int _wordIndex = 0;
+  Timer? _wordCycleTimer;
+  Timer? _totalTimer;
   bool _done = false;
-  bool _started = false;
 
   @override
   void initState() {
     super.initState();
-    // TEMPORARY timing setting: load user-tested seconds, default 5.
-    AppState.getSplashSeconds().then((s) {
-      if (!mounted || _started) return;
-      _start(Duration(seconds: s));
+
+    // 5.0-second smooth total timeline
+    _master = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 5000),
+    );
+
+    _wordController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+
+    _master.forward();
+
+    // Start cycling words at 2.3s so WIN settles by 3.6s
+    Timer(const Duration(milliseconds: 2300), () {
+      if (!mounted) return;
+      _cycleNextWord();
     });
-    // Safety: never strand the user on the splash if prefs hang.
-    Timer(const Duration(milliseconds: 800), () {
-      if (!mounted || _started) return;
-      _start(const Duration(seconds: 5));
-    });
+
+    // Auto finish at 5.0s
+    _totalTimer = Timer(const Duration(milliseconds: 5000), _finish);
   }
 
-  void _start(Duration total) {
-    _started = true;
-    _master = AnimationController(vsync: this, duration: total)..forward();
-    _timer = Timer(total, _finish);
-    setState(() {});
+  void _cycleNextWord() {
+    if (!mounted || _done) return;
+
+    if (_wordIndex < _wWords.length - 1) {
+      _wordController.forward(from: 0.0).then((_) {
+        _wordCycleTimer = Timer(const Duration(milliseconds: 220), () {
+          if (!mounted || _done) return;
+          setState(() {
+            _wordIndex++;
+          });
+          _cycleNextWord();
+        });
+      });
+    } else {
+      // Final word: "WIN 🏆" settles cleanly and stays visible
+      _wordController.forward(from: 0.0);
+    }
   }
 
   void _finish() {
@@ -62,218 +85,292 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _master?.dispose();
+    _totalTimer?.cancel();
+    _wordCycleTimer?.cancel();
+    _master.dispose();
+    _wordController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final t = HiwTheme.of(context);
-    final master = _master;
-    // Dark-green flow on light stages, bright leaf-green on dark ones
-    // (Greezy/night) so the liquid stays readable everywhere.
-    final isDarkStage =
-        Theme.of(context).brightness == Brightness.dark;
-    final flowGreen =
-        isDarkStage ? const Color(0xFF2ECC71) : leafGreen;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+
+    // Palette harmonized with active theme
+    final hColor = isDark ? const Color(0xFF00E676) : const Color(0xFF0B6B3A);
+    final iColor = isDark ? const Color(0xFF00B0FF) : const Color(0xFF0288D1);
+    final wColor = isDark ? const Color(0xFFFF9100) : const Color(0xFFE86A1D);
+    final winGold = isDark ? const Color(0xFFFFD700) : const Color(0xFFD49B00);
+    final mutedColor = t.mutedColor;
+
+    // Timeline Intervals:
+    // 1. Logo holds at center 0.0s - 1.0s (0.00 -> 0.20)
+    //    Then glides upward slowly & smoothly 1.0s - 1.8s (0.20 -> 0.36)
+    //    Using Curves.easeInOutCubic so it starts and stops like silk, no bounce/jiggle
+    final logoMoveAnim = CurvedAnimation(
+      parent: _master,
+      curve: const Interval(0.20, 0.36, curve: Curves.easeInOutCubic),
+    );
+
+    // 2. Letters gently ease in below logo: 1.35s - 2.0s (0.27 -> 0.40)
+    final lettersFadeAnim = CurvedAnimation(
+      parent: _master,
+      curve: const Interval(0.27, 0.38, curve: Curves.easeIn),
+    );
+    final lettersMoveAnim = CurvedAnimation(
+      parent: _master,
+      curve: const Interval(0.27, 0.40, curve: Curves.easeOutCubic),
+    );
+
+    // 3. Subtitle sentence entrance: 1.85s - 2.4s (0.37 -> 0.48)
+    final subAnim = CurvedAnimation(
+      parent: _master,
+      curve: const Interval(0.37, 0.48, curve: Curves.easeOut),
+    );
+
+    // 4. Smooth, buttery fade out into the main screen: 4.65s - 5.0s (0.93 -> 1.00)
+    final exitFade = CurvedAnimation(
+      parent: _master,
+      curve: const Interval(0.93, 1.00, curve: Curves.easeIn),
+    );
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _finish, // tap to skip
+      onTap: _finish, // tap to skip immediately
       child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: Center(
-          child: master == null
-              ? Text(
-                  'HIW',
-                  style: TextStyle(
-                    fontSize: 84.sp,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 4.w,
-                    color: t.inkColor,
+        backgroundColor: bgColor,
+        body: AnimatedBuilder(
+          animation: exitFade,
+          builder: (context, child) {
+            return Opacity(
+              opacity: (1.0 - exitFade.value).clamp(0.0, 1.0),
+              child: child,
+            );
+          },
+          child: Center(
+            child: AnimatedBuilder(
+              animation: logoMoveAnim,
+              builder: (context, child) {
+                // At 0.0 (first second), shiftY = 70.h putting the logo in dead center
+                // As it progresses to 1.0, it glides up smoothly to its final position
+                final shiftY = (1.0 - logoMoveAnim.value) * 70.h;
+                return Transform.translate(
+                  offset: Offset(0, shiftY),
+                  child: child,
+                );
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── 1. App Logo: 90x90 matching native launch image pixel-for-pixel ──
+                  SizedBox(
+                    width: 90.w,
+                    height: 90.w,
+                    child: Image.asset(
+                      'assets/logo.png',
+                      fit: BoxFit.contain,
+                    ),
                   ),
-                )
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
+
+                  SizedBox(height: 22.h),
+
+                  // ── 2. Pure Typography H - I - W (Gently glides in below logo) ──
+                  FadeTransition(
+                    opacity: lettersFadeAnim,
+                    child: AnimatedBuilder(
+                      animation: lettersMoveAnim,
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: Offset(0, (1.0 - lettersMoveAnim.value) * 18.h),
+                          child: child,
+                        );
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          _buildCleanLetter('H', hColor),
+                          SizedBox(width: 6.w),
+                          _buildCleanLetter('I', iColor),
+                          SizedBox(width: 6.w),
+                          _buildCleanLetter('W', wColor),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: 22.h),
+
+                  // ── 3. Subtitle Row: HEALTH IS [TUMBLER] ──
+                  FadeTransition(
+                    opacity: subAnim,
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        _FlowLetter(
-                          master: master,
-                          letter: 'H',
-                          base: flowGreen,
+                        Text(
+                          'HEALTH',
+                          style: TextStyle(
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2.5.w,
+                            color: hColor,
+                          ),
                         ),
-                        // I falls into the CENTER between H and W.
-                        _DropLetter(
-                          master: master,
-                          letter: 'I',
-                          base: waterBlue,
+                        SizedBox(width: 7.w),
+                        Text(
+                          'IS',
+                          style: TextStyle(
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2.5.w,
+                            color: iColor,
+                          ),
                         ),
-                        _FlowLetter(
-                          master: master,
-                          letter: 'W',
-                          base: flowGreen,
+                        SizedBox(width: 8.w),
+
+                        // Tumbler: Clean rounded pill badge
+                        Container(
+                          height: 32.h,
+                          constraints: BoxConstraints(minWidth: 105.w),
+                          padding: EdgeInsets.symmetric(horizontal: 10.w),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.black.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(16.r),
+                            border: Border.all(
+                              color: _wordIndex == _wWords.length - 1
+                                  ? winGold.withValues(alpha: 0.7)
+                                  : wColor.withValues(alpha: 0.25),
+                              width: 1.4,
+                            ),
+                            boxShadow: _wordIndex == _wWords.length - 1
+                                ? [
+                                    BoxShadow(
+                                      color: winGold.withValues(alpha: 0.25),
+                                      blurRadius: 14,
+                                      spreadRadius: 1,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          alignment: Alignment.center,
+                          child: ClipRect(
+                            child: AnimatedBuilder(
+                              animation: _wordController,
+                              builder: (context, _) {
+                                final isFinal =
+                                    _wordIndex == _wWords.length - 1;
+                                final currentWord = _wWords[_wordIndex];
+
+                                double translateY = 0.0;
+                                double opacity = 1.0;
+
+                                if (isFinal) {
+                                  // "WIN 🏆" settles cleanly in center and holds
+                                  final val = Curves.easeOutCubic
+                                      .transform(_wordController.value);
+                                  translateY = (1.0 - val) * 12.h;
+                                  opacity = _wordController.value.clamp(0.0, 1.0);
+                                } else {
+                                  final v = _wordController.value;
+                                  if (v < 0.5) {
+                                    final p = v / 0.5;
+                                    translateY = (1.0 -
+                                            Curves.easeOutCubic.transform(p)) *
+                                        18.h;
+                                    opacity = p;
+                                  } else {
+                                    final p = (v - 0.5) / 0.5;
+                                    translateY =
+                                        -Curves.easeInCubic.transform(p) * 18.h;
+                                    opacity = 1.0 - p;
+                                  }
+                                }
+
+                                return Transform.translate(
+                                  offset: Offset(0, translateY),
+                                  child: Opacity(
+                                    opacity: opacity.clamp(0.0, 1.0),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          currentWord.toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 14.sp,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 2.w,
+                                            color: isFinal ? winGold : wColor,
+                                          ),
+                                        ),
+                                        if (isFinal) ...[
+                                          SizedBox(width: 4.w),
+                                          Text(
+                                            '🏆',
+                                            style: TextStyle(fontSize: 13.sp),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 16.h),
-                    FadeTransition(
-                      opacity: Tween<double>(begin: 0, end: 1).animate(
-                        CurvedAnimation(
-                          parent: master,
-                          curve:
-                              const Interval(0.8, 1.0, curve: Curves.easeIn),
-                        ),
-                      ),
-                      child: Text(
-                        'HEALTH IS WEALTH',
-                        style: TextStyle(
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 4.w,
-                          color: t.mutedColor,
-                        ),
+                  ),
+
+                  SizedBox(height: 38.h),
+
+                  // ── 4. Subtle tap prompt ──
+                  FadeTransition(
+                    opacity: CurvedAnimation(
+                      parent: _master,
+                      curve: const Interval(0.48, 0.65, curve: Curves.easeIn),
+                    ),
+                    child: Text(
+                      'tap to enter',
+                      style: TextStyle(
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 1.5.w,
+                        color: mutedColor.withValues(alpha: 0.55),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
-}
 
-/// A letter with liquid highlight flowing down then back up,
-/// repeating [SplashScreen.flowPasses] times while H+W form together.
-/// The I drops into the center BEFORE the flow completes, so all
-/// three letters synchronize into H I W as one motion.
-class _FlowLetter extends StatelessWidget {
-  final Animation<double> master;
-  final String letter;
-  final Color base;
-
-  const _FlowLetter({
-    required this.master,
-    required this.letter,
-    required this.base,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: master,
-      builder: (context, _) {
-        // 0→0.85: H+W flow passes (down → reverse up, repeated).
-        // The I starts dropping at 0.45, mid-flow.
-        final phase = (master.value / 0.85).clamp(0.0, 1.0);
-        final cycles = phase * _SplashScreenState.flowPasses;
-        final frac = cycles - cycles.floor();
-        // Triangle wave: 0→1→0 per pass.
-        final p = frac < 0.5 ? frac * 2 : (1 - frac) * 2;
-        const band = 0.28;
-        final stops = [
-          (p - band).clamp(0.0, 1.0),
-          p.clamp(0.0, 1.0),
-          (p + band).clamp(0.0, 1.0),
-        ];
-        return ShaderMask(
-          blendMode: BlendMode.srcATop,
-          shaderCallback: (bounds) => LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              base,
-              _lighten(base),
-              base,
-            ],
-            stops: stops,
-          ).createShader(bounds),
-          child: Text(
-            letter,
-            style: TextStyle(
-              fontSize: 84.sp,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 4.w,
-              color: base,
-              height: 1.0,
+  Widget _buildCleanLetter(String letter, Color color) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontSize: 66.sp,
+          fontWeight: FontWeight.w900,
+          color: color,
+          letterSpacing: 2.w,
+          shadows: [
+            Shadow(
+              color: color.withValues(alpha: 0.25),
+              blurRadius: 18,
+              offset: const Offset(0, 4),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Color _lighten(Color c) {
-    final hsl = HSLColor.fromColor(c);
-    return hsl
-        .withLightness((hsl.lightness + 0.35).clamp(0.0, 1.0))
-        .toColor();
-  }
-}
-
-/// I drops from the top WHILE H+W are still completing (starts at 0.45),
-/// lands in the exact center, and settles with them into H I W.
-class _DropLetter extends StatelessWidget {
-  final Animation<double> master;
-  final String letter;
-  final Color base;
-
-  const _DropLetter({
-    required this.master,
-    required this.letter,
-    required this.base,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final drop = Tween<Offset>(
-      begin: const Offset(0, -2.5),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: master,
-        curve: const Interval(0.45, 0.8, curve: Curves.easeOutBack),
-      ),
-    );
-    final fade = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: master,
-        curve: const Interval(0.45, 0.55, curve: Curves.easeIn),
-      ),
-    );
-    // Gentle settle wobble as all three letters land together.
-    final wobble = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: master,
-        curve: const Interval(0.8, 0.95, curve: Curves.easeOut),
-      ),
-    );
-    return FadeTransition(
-      opacity: fade,
-      child: SlideTransition(
-        position: drop,
-        child: AnimatedBuilder(
-          animation: wobble,
-          builder: (context, child) {
-            final w = math.sin(wobble.value * math.pi) * 0.06;
-            return Transform.translate(
-              offset: Offset(0, -w * 20),
-              child: child,
-            );
-          },
-          child: Text(
-            letter,
-            style: TextStyle(
-              fontSize: 84.sp,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 4.w,
-              color: base,
-              height: 1.0,
-            ),
-          ),
+          ],
         ),
       ),
     );

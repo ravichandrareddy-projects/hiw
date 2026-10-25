@@ -1,0 +1,101 @@
+[
+  {
+    "id": "india",
+    "name": "Indian Cuisine",
+    "country": "India",
+    "flag": "\ud83c\uddee\ud83c\uddf3",
+    "count": 31638,
+    "description": "IFCT ICMR-NIN, INDB, regional recipes, sweets & dishes",
+    "asset": "assets/food_data/india.json"
+  },
+  {
+    "id": "usa",
+    "name": "American / USA",
+    "country": "United States",
+    "flag": "\ud83c\uddfa\ud83c\uddf8",
+    "count": 31957,
+    "description": "United States national composition & market database",
+    "asset": "assets/food_data/usa.json"
+  },
+  {
+    "id": "italy",
+    "name": "Italian & Mediterranean",
+    "country": "Italy",
+    "flag": "\ud83c\uddee\ud83c\uddf9",
+    "count": 23714,
+    "description": "Italy national composition & market database",
+    "asset": "assets/food_data/italy.json"
+  },
+  {
+    "id": "japan",
+    "name": "Japanese & Asian",
+    "country": "Japan",
+    "flag": "\ud83c\uddef\ud83c\uddf5",
+    "count": 22330,
+    "description": "Japan national composition & market database",
+    "asset": "assets/food_data/japan.json"
+  },
+  {
+    "id": "uk",
+    "name": "British / UK",
+    "country": "United Kingdom",
+    "flag": "\ud83c\uddec\ud83c\udde7",
+    "count": 27325,
+    "description": "United Kingdom national composition & market database",
+    "asset": "assets/food_data/uk.json"
+  },
+  {
+    "id": "germany",
+    "name": "German Cuisine",
+    "country": "Germany",
+    "flag": "\ud83c\udde9\ud83c\uddea",
+    "count": 31665,
+    "description": "Germany national composition & market database",
+    "asset": "assets/food_data/germany.json"
+  },
+  {
+    "id": "france",
+    "name": "French Cuisine",
+    "country": "France",
+    "flag": "\ud83c\uddeb\ud83c\uddf7",
+    "count": 27251,
+    "description": "France national composition & market database",
+    "asset": "assets/food_data/france.json"
+  },
+  {
+    "id": "spain",
+    "name": "Spanish Cuisine",
+    "country": "Spain",
+    "flag": "\ud83c\uddea\ud83c\uddf8",
+    "count": 23003,
+    "description": "Spain national composition & market database",
+    "asset": "assets/food_data/spain.json"
+  },
+  {
+    "id": "canada",
+    "name": "Canadian Cuisine",
+    "country": "Canada",
+    "flag": "\ud83c\udde8\ud83c\udde6",
+    "count": 29915,
+    "description": "Canada national composition & market database",
+    "asset": "assets/food_data/canada.json"
+  },
+  {
+    "id": "australia",
+    "name": "Australian Cuisine",
+    "country": "Australia",
+    "flag": "\ud83c\udde6\ud83c\uddfa",
+    "count": 22311,
+    "description": "Australia national composition & market database",
+    "asset": "assets/food_data/australia.json"
+  },
+  {
+    "id": "netherlands",
+    "name": "Dutch & European",
+    "country": "Netherlands",
+    "flag": "\ud83c\uddf3\ud83c\uddf1",
+    "count": 21254,
+    "description": "Netherlands national composition & market database",
+    "asset": "assets/food_data/netherlands.json"
+  }
+]

@@ -165,8 +165,10 @@ class NotificationService {
     required int startHour,
     required int startMinute,
   }) async {
-    for (int i = 0; i < 16; i++) {
+    // Respect quiet hours: Only schedule between 07:00 and 21:30
+    for (int i = 0; i < 14; i++) {
       int targetHour = (startHour + i) % 24;
+      if (targetHour < 7 || targetHour > 21) continue; // Skip quiet hours
       
       final now = DateTime.now();
       DateTime targetDateTime = DateTime(now.year, now.month, now.day, targetHour, startMinute);
@@ -177,14 +179,14 @@ class NotificationService {
 
       await notificationsPlugin.zonedSchedule(
         200 + i,
-        '💧 Stay Hydrated!',
-        'Time for a glass of water. Keep it up! (Glass ${i + 1})',
+        '💧 Time for a water break',
+        'Hydration supports digestion & steady energy. Log a glass!',
         tz.TZDateTime.from(targetDateTime, tz.local),
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'water_reminders_channel',
             'Water Reminders',
-            channelDescription: 'Hourly hydration alerts',
+            channelDescription: 'Hydration alerts with quiet hours respect',
             importance: Importance.max,
             priority: Priority.high,
           ),
@@ -195,26 +197,31 @@ class NotificationService {
         matchDateTimeComponents: DateTimeComponents.time,
       );
     }
-    debugPrint('Scheduled 16 Water Reminders starting at $startHour:$startMinute (Local)');
+    debugPrint('Scheduled daytime Water Reminders starting at $startHour:$startMinute (Local)');
   }
 
   Future<void> cancelWaterReminders() async {
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 20; i++) {
       await notificationsPlugin.cancel(200 + i);
     }
   }
 
-  /// Evening streak-at-risk nudge (ID 300, daily 21:00). Gentle, one tap.
-  Future<void> scheduleStreakNudge() async {
+  /// Evening streak protection nudge (ID 300, daily 21:00).
+  Future<void> scheduleStreakNudge({int? currentStreak}) async {
     final now = tz.TZDateTime.now(tz.local);
     var at = tz.TZDateTime(tz.local, now.year, now.month, now.day, 21, 0);
     if (at.isBefore(now)) {
       at = at.add(const Duration(days: 1));
     }
+
+    final body = (currentStreak != null && currentStreak > 0)
+        ? 'Your $currentStreak-day HIW streak is waiting for you! Log today to keep it alive.'
+        : 'Your HIW streak is waiting for you. Log your meals to build healthy consistency.';
+
     await notificationsPlugin.zonedSchedule(
       300,
       '🔥 Protect your streak',
-      'Log dinner before bed to keep it alive.',
+      body,
       at,
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -234,6 +241,39 @@ class NotificationService {
 
   Future<void> cancelStreakNudge() async {
     await notificationsPlugin.cancel(300);
+  }
+
+  /// Evening nutrition & macro progress checkpoint (ID 400, daily 18:30)
+  Future<void> scheduleNutritionCheckpoint({int hour = 18, int minute = 30}) async {
+    final now = tz.TZDateTime.now(tz.local);
+    var at = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    if (at.isBefore(now)) {
+      at = at.add(const Duration(days: 1));
+    }
+
+    await notificationsPlugin.zonedSchedule(
+      400,
+      '🥗 Nutrition Checkpoint',
+      "You're getting close to today's protein & calorie target! Check your daily balance.",
+      at,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'nutrition_channel',
+          'Nutrition Reminders',
+          channelDescription: 'Daily macro and nutrient checkpoints',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
+  Future<void> cancelNutritionCheckpoint() async {
+    await notificationsPlugin.cancel(400);
   }
 
   Future<void> showImmediateNotification({

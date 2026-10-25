@@ -24,8 +24,10 @@ class AuthException implements Exception {
 
 abstract class AuthProvider {
   Future<AuthUser> login(String email, String password);
-  Future<void> register(String email, String password);
-  Future<AuthUser> verifyOtp(String email, String code);
+  Future<AuthUser> register(String email, String password, {String? username});
+  Future<AuthUser> signInWithGoogle();
+  Future<void> sendPasswordReset(String email);
+  Future<void> updatePassword(String newPassword);
   Future<void> logout();
 }
 
@@ -36,10 +38,8 @@ abstract class AuthProvider {
 /// OTP is always 123456 (clearly mock — Supabase Auth replaces this).
 class MockAuthProvider implements AuthProvider {
   static const _usersKey = 'mock_auth_users';
-  static const _otpKey = 'mock_auth_otp';
   static const testEmail = 'user1@gmail.com';
   static const testPassword = '1234';
-  static const mockOtp = '123456';
 
   static String _hash(String salt, String password) =>
       sha256.convert(utf8.encode('$salt:$password')).toString();
@@ -105,7 +105,7 @@ class MockAuthProvider implements AuthProvider {
   }
 
   @override
-  Future<void> register(String email, String password) async {
+  Future<AuthUser> register(String email, String password, {String? username}) async {
     await Future.delayed(const Duration(milliseconds: 600));
     final users = await _users();
     final key = email.trim().toLowerCase();
@@ -114,20 +114,45 @@ class MockAuthProvider implements AuthProvider {
     }
     users[key] = _newEntry(password);
     await _saveUsers(users);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_otpKey, mockOtp);
+    final user = AuthUser(
+      email: key,
+      username: (username != null && username.trim().isNotEmpty)
+          ? username.trim()
+          : _defaultName(key),
+    );
+    return user;
   }
 
   @override
-  Future<AuthUser> verifyOtp(String email, String code) async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (code.trim() != mockOtp) {
-      throw AuthException('Wrong code. Hint: 123456 (demo).');
+  Future<AuthUser> signInWithGoogle() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    const googleEmail = 'google_user@gmail.com';
+    final users = await _users();
+    if (!users.containsKey(googleEmail)) {
+      users[googleEmail] = _newEntry('google_oauth_mock_pwd');
+      await _saveUsers(users);
     }
-    return AuthUser(
-      email: email.trim().toLowerCase(),
-      username: _defaultName(email),
+    return const AuthUser(
+      email: googleEmail,
+      username: 'Google User',
     );
+  }
+
+  @override
+  Future<void> sendPasswordReset(String email) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    final users = await _users();
+    if (!users.containsKey(email.trim().toLowerCase())) {
+      throw AuthException('No account found for this email.');
+    }
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (newPassword.length < 4) {
+      throw AuthException('Password must be at least 4 characters.');
+    }
   }
 
   @override
@@ -142,7 +167,6 @@ class MockAuthProvider implements AuthProvider {
 
 /// Real Supabase Auth. Active only when BackendConfig.hasSupabase;
 /// otherwise every call fails cleanly with AuthException (mock stays).
-/// Email OTP matches the existing register → OTP-screen UI flow.
 class SupabaseAuthProvider implements AuthProvider {
   sb.SupabaseClient get _client {
     if (!BackendConfig.hasSupabase) {
@@ -152,15 +176,17 @@ class SupabaseAuthProvider implements AuthProvider {
     return sb.Supabase.instance.client;
   }
 
-  AuthUser _toUser(String email) => AuthUser(
+  AuthUser _toUser(String email, [String? username]) => AuthUser(
         email: email.trim().toLowerCase(),
-        username: _defaultName(email),
+        username: (username != null && username.isNotEmpty)
+            ? username
+            : _defaultName(email),
       );
 
   Never _wrap(Object e) {
     if (e is AuthException) throw e;
     if (e is sb.AuthException) throw AuthException(e.message);
-    throw AuthException('Login failed. Check details and try again.');
+    throw AuthException('Operation failed. Check connection and retry.');
   }
 
   @override
@@ -171,22 +197,61 @@ class SupabaseAuthProvider implements AuthProvider {
         password: password,
       );
       final userEmail = res.user?.email ?? email;
-      return _toUser(userEmail);
+      final name = res.user?.userMetadata?['full_name'] as String?;
+      return _toUser(userEmail, name);
     } catch (e) {
       _wrap(e);
     }
   }
 
   @override
-  Future<void> register(String email, String password) async {
+  Future<AuthUser> register(String email, String password, {String? username}) async {
     if (password.length < 6) {
       throw AuthException(
           'Cloud accounts need at least 6 characters.');
     }
     try {
-      await _client.auth.signUp(
+      final res = await _client.auth.signUp(
         email: email.trim().toLowerCase(),
         password: password,
+        data: (username != null && username.isNotEmpty)
+            ? {'full_name': username}
+            : null,
+      );
+      final user = res.user;
+      final userEmail = user?.email ?? email;
+      final name = user?.userMetadata?['full_name'] as String? ?? username;
+      return _toUser(userEmail, name);
+    } catch (e) {
+      _wrap(e);
+    }
+  }
+
+  @override
+  Future<AuthUser> signInWithGoogle() async {
+    try {
+      final launched = await _client.auth.signInWithOAuth(
+        sb.OAuthProvider.google,
+        redirectTo: 'io.supabase.hiw://login-callback',
+      );
+      if (!launched) {
+        throw AuthException('Could not launch Google Sign-In.');
+      }
+      final user = _client.auth.currentUser;
+      final userEmail = user?.email ?? 'google.user@hiw.app';
+      final name = user?.userMetadata?['full_name'] as String?;
+      return _toUser(userEmail, name);
+    } catch (e) {
+      _wrap(e);
+    }
+  }
+
+  @override
+  Future<void> sendPasswordReset(String email) async {
+    try {
+      await _client.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        redirectTo: 'io.supabase.hiw://reset-callback',
       );
     } catch (e) {
       _wrap(e);
@@ -194,15 +259,12 @@ class SupabaseAuthProvider implements AuthProvider {
   }
 
   @override
-  Future<AuthUser> verifyOtp(String email, String code) async {
+  Future<void> updatePassword(String newPassword) async {
+    if (newPassword.length < 6) {
+      throw AuthException('Password must be at least 6 characters.');
+    }
     try {
-      final res = await _client.auth.verifyOTP(
-        type: sb.OtpType.email,
-        token: code.trim(),
-        email: email.trim().toLowerCase(),
-      );
-      final userEmail = res.user?.email ?? email;
-      return _toUser(userEmail);
+      await _client.auth.updateUser(sb.UserAttributes(password: newPassword));
     } catch (e) {
       _wrap(e);
     }
@@ -236,11 +298,17 @@ class AuthService {
   Future<AuthUser> login(String email, String password) =>
       _provider.login(email, password);
 
-  Future<void> register(String email, String password) =>
-      _provider.register(email, password);
+  Future<AuthUser> register(String email, String password, {String? username}) =>
+      _provider.register(email, password, username: username);
 
-  Future<AuthUser> verifyOtp(String email, String code) =>
-      _provider.verifyOtp(email, code);
+  Future<AuthUser> signInWithGoogle() =>
+      _provider.signInWithGoogle();
+
+  Future<void> sendPasswordReset(String email) =>
+      _provider.sendPasswordReset(email);
+
+  Future<void> updatePassword(String newPassword) =>
+      _provider.updatePassword(newPassword);
 
   Future<void> logout() => _provider.logout();
 

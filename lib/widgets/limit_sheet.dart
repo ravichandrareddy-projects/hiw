@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../screens/paywall_screen.dart';
 import '../themes/hiw_theme.dart';
+import '../themes/hiw_gold.dart';
 
 /// Shows quota state + reset info + Pro upsell. Returns true if user
 /// chose to continue within Free (when [freeAlternative] provided).
@@ -46,8 +47,8 @@ Future<bool> showLimitSheet(
                   ),
                 ),
                 SizedBox(height: 14.h),
-                Icon(Icons.bolt_outlined,
-                    size: 40.sp, color: t.accentColor),
+                Icon(Icons.workspace_premium_rounded,
+                    size: 40.sp, color: HiwGold.warmGold),
                 SizedBox(height: 10.h),
                 Text(
                   title,
@@ -66,12 +67,20 @@ Future<bool> showLimitSheet(
                       color: t.mutedColor, fontSize: 13.sp),
                 ),
                 SizedBox(height: 16.h),
-                SizedBox(
+                Container(
                   width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: HiwGold.buttonGradient,
+                    borderRadius: BorderRadius.circular(14.r),
+                    boxShadow: [
+                      HiwGold.haloGlow(blur: 14.r, opacity: 0.4),
+                    ],
+                  ),
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: t.accentColor,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      foregroundColor: const Color(0xFF2C1400),
                       padding:
                           EdgeInsets.symmetric(vertical: 14.h),
                       shape: RoundedRectangleBorder(
@@ -87,9 +96,21 @@ Future<bool> showLimitSheet(
                         ),
                       );
                     },
-                    child: const Text('See HIW Pro',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('👑', style: TextStyle(fontSize: 16)),
+                        SizedBox(width: 6.w),
+                        Text(
+                          'See HIW Pro (7-Day Trial)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14.sp,
+                            color: const Color(0xFF2C1400),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 if (freeAlternativeLabel != null) ...[

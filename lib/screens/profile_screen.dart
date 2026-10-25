@@ -17,10 +17,14 @@ import '../services/analytics_service.dart';
 import '../main.dart';
 import '../events/event_manager.dart';
 import '../core/theme_manager.dart';
-import 'mood_support_screen.dart'; // 🆕 Mood support chatbot
-import '../widgets/mood_check_overlay.dart'; // 🆕 Mood check overlay
+// import 'mood_support_screen.dart'; // 🚫 Disabled
+// import '../widgets/mood_check_overlay.dart'; // 🚫 Disabled
 import '../widgets/customize_theme_sheet.dart'; // 🆕 Customize palette
+import '../widgets/bottom_nav_theme_sheet.dart'; // 🆕 Bottom nav bar colors
 import '../themes/hiw_theme.dart';
+import '../themes/hiw_gold.dart';
+// import '../config/backend_config.dart'; // 🚫 Disabled
+import '../core/subscription/billing_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -35,6 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _testerCode;
   bool _isLoading = true;
   int _splashSeconds = 5; // TEMPORARY intro-timing test value
+  Entitlement? _entitlement;
 
   @override
   void initState() {
@@ -48,6 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       AppState.getLastVerifiedCode(),
     ]);
     final splash = await AppState.getSplashSeconds();
+    final entitlement = await EntitlementStore.current();
 
     if (mounted) {
       setState(() {
@@ -55,6 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _testerCode = results[1];
         _targetCalories = NutritionStore().dailyTargetCalories;
         _splashSeconds = splash;
+        _entitlement = entitlement;
         _isLoading = false;
       });
     }
@@ -92,27 +99,99 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: EdgeInsets.all(24.0.r),
                       child: Column(
                         children: [
-                          // 👤 AVATAR ICON
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Theme.of(context)
-                                .primaryColor
-                                .withValues(alpha: 0.2),
-                            child: Icon(Icons.person,
-                                size: 50,
-                                color: Theme.of(context).primaryColor),
+                          // 👤 AVATAR ICON WITH PRO GOLD EFFECT
+                          Stack(
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                width: 108.r,
+                                height: 108.r,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: (_entitlement?.isPro ?? false)
+                                      ? HiwGold.goldGradient
+                                      : null,
+                                  color: (_entitlement?.isPro ?? false)
+                                      ? null
+                                      : Theme.of(context)
+                                          .primaryColor
+                                          .withValues(alpha: 0.2),
+                                  boxShadow: (_entitlement?.isPro ?? false)
+                                      ? [
+                                          HiwGold.haloGlow(
+                                              blur: 20.r,
+                                              spread: 3.r,
+                                              opacity: 0.55),
+                                        ]
+                                      : null,
+                                ),
+                                padding: EdgeInsets.all(
+                                    (_entitlement?.isPro ?? false) ? 4.r : 0),
+                                child: CircleAvatar(
+                                  radius: 50.r,
+                                  backgroundColor: (_entitlement?.isPro ?? false)
+                                      ? (isDark
+                                          ? HiwGold.cardBgDark
+                                          : HiwGold.cardBgLight)
+                                      : Theme.of(context)
+                                          .primaryColor
+                                          .withValues(alpha: 0.2),
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 50.r,
+                                    color: (_entitlement?.isPro ?? false)
+                                        ? HiwGold.warmGold
+                                        : Theme.of(context).primaryColor,
+                                  ),
+                                ),
+                              ),
+                              if (_entitlement?.isPro ?? false)
+                                Positioned(
+                                  top: -2.h,
+                                  right: -2.w,
+                                  child: Container(
+                                    padding: EdgeInsets.all(5.r),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: HiwGold.badgeGradient,
+                                      border: Border.all(
+                                          color: Colors.white, width: 2.w),
+                                      boxShadow: [
+                                        HiwGold.subtleGlow(
+                                            blur: 8.r, opacity: 0.4),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      '👑',
+                                      style: TextStyle(fontSize: 14.sp),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           SizedBox(height: 16.h),
 
-                          // 📛 USERNAME
-                          Text(
-                            _username,
-                            style: TextStyle(
-                              fontSize: 28.sp,
-                              fontWeight: FontWeight.bold,
-                              color:
-                                  Theme.of(context).textTheme.bodyLarge?.color,
-                            ),
+                          // 📛 USERNAME & PRO MEMBER TAG
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _username,
+                                style: TextStyle(
+                                  fontSize: 28.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.color,
+                                ),
+                              ),
+                              if (_entitlement?.isPro ?? false) ...[
+                                SizedBox(width: 8.w),
+                                HiwGold.proMemberTag(fontSize: 11),
+                              ],
+                            ],
                           ),
                           SizedBox(height: 8.h),
                           Text(
@@ -180,6 +259,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             },
                           ),
 
+                          SizedBox(height: 12.h),
+
+                          // 🧭 BOTTOM BAR COLORS (bar bg + selection glow)
+                          _buildTile(
+                            context,
+                            icon: Icons.navigation_rounded,
+                            color: const Color(0xFFFF9E44),
+                            title: 'Bottom Bar Colors',
+                            subtitle: 'Bar background & active selection glow',
+                            isDark: isDark,
+                            onTap: () async {
+                              await showBottomNavThemeSheet(context);
+                              if (mounted) setState(() {});
+                            },
+                          ),
+
                           // ⏱️ INTRO TIMING (tester-only test setting 1-10s)
                           FutureBuilder<bool>(
                             future: TesterGate.isTesterMode(),
@@ -233,36 +328,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           SizedBox(height: 12.h),
 
-                          // ⭐ HIW PRO TILE
+                          // 💳 SUBSCRIPTION & PLAN MANAGEMENT (NOT a sales paywall)
                           _buildTile(
                             context,
-                            icon: Icons.workspace_premium_rounded,
-                            color: Colors.amberAccent,
-                            title: 'HIW Pro',
-                            subtitle: 'Plans, fasting, trends & more',
+                            icon: (_entitlement?.isPro ?? false)
+                                ? Icons.workspace_premium_rounded
+                                : Icons.card_membership_rounded,
+                            color: (_entitlement?.isPro ?? false)
+                                ? HiwGold.warmGold
+                                : Colors.tealAccent,
+                            title: 'Subscription & Plan',
+                            subtitle: (_entitlement?.isPro ?? false)
+                                ? '👑 HIW Pro Active • Tap to manage'
+                                : 'Free Plan (Active Forever) • Tap to manage',
                             isDark: isDark,
-                            onTap: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        const PaywallScreen()),
-                              );
-                              _loadUserData();
-                            },
-                          ),
-
-                          SizedBox(height: 12.h),
-
-                          // 🎟️ REDEEM PRO CODE (coupons)
-                          _buildTile(
-                            context,
-                            icon: Icons.confirmation_number_outlined,
-                            color: Colors.pinkAccent,
-                            title: 'Redeem Pro Code',
-                            subtitle: 'Have a coupon? Unlock Pro',
-                            isDark: isDark,
-                            onTap: () => _showRedeemDialog(context),
+                            onTap: () => _showSubscriptionSheet(context),
                           ),
 
                           SizedBox(height: 12.h),
@@ -362,31 +442,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           SizedBox(height: 12.h),
 
-                          // 💙 TEST MOOD CHECK BUTTON (tester-only — audit §4)
-                          FutureBuilder<bool>(
-                            future: TesterGate.isTesterMode(),
-                            builder: (ctx, snap) {
-                              if (snap.data != true) {
-                                return const SizedBox.shrink();
-                              }
-                              return Column(
-                                children: [
-                                  _buildTile(
-                                    context,
-                                    icon: Icons.psychology,
-                                    color: Colors.lightBlueAccent,
-                                    title: 'Test Mood Check',
-                                    subtitle:
-                                        'Trigger mood check overlay (for testing)',
-                                    isDark: isDark,
-                                    onTap: () =>
-                                        _showMoodCheckOverlay(context),
-                                  ),
-                                  SizedBox(height: 12.h),
-                                ],
-                              );
-                            },
-                          ),
+                          // 💙 TEST MOOD CHECK BUTTON (Disabled)
+                          /*
+                          if (BackendConfig.moodCheckerEnabled)
+                            FutureBuilder<bool>(
+                              future: TesterGate.isTesterMode(),
+                              builder: (ctx, snap) {
+                                if (snap.data != true) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Column(
+                                  children: [
+                                    _buildTile(
+                                      context,
+                                      icon: Icons.psychology,
+                                      color: Colors.lightBlueAccent,
+                                      title: 'Test Mood Check',
+                                      subtitle:
+                                          'Trigger mood check overlay (for testing)',
+                                      isDark: isDark,
+                                      onTap: () =>
+                                          _showMoodCheckOverlay(context),
+                                    ),
+                                    SizedBox(height: 12.h),
+                                  ],
+                                );
+                              },
+                            ),
+                          */
 
                           SizedBox(height: 32.h),
 
@@ -490,7 +573,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   );
   }
 
-  // 🆕 Show mood check overlay for testing
+  // 🆕 Show mood check overlay for testing (Disabled)
+  /*
   void _showMoodCheckOverlay(BuildContext context) {
     showDialog(
       context: context,
@@ -539,6 +623,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+  */
 
   Future<void> _handleLogout(BuildContext context) async {
     HapticFeedback.mediumImpact();
@@ -664,6 +749,228 @@ class _ProfileScreenState extends State<ProfileScreen> {
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Done'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSubscriptionSheet(BuildContext context) async {
+    final t = HiwTheme.of(context);
+    final ent = await EntitlementStore.current();
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 28.h),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+          border: Border.all(color: t.cardStroke),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: t.cardStroke,
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
+              ),
+            ),
+            SizedBox(height: 16.h),
+            Row(
+              children: [
+                Icon(
+                  ent.isPro
+                      ? Icons.workspace_premium_rounded
+                      : Icons.check_circle_outline_rounded,
+                  color: ent.isPro ? HiwGold.warmGold : Colors.green,
+                  size: 26.sp,
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            ent.isPro ? 'HIW Pro Active' : 'Free Plan Active Forever',
+                            style: TextStyle(
+                              color: t.inkColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18.sp,
+                            ),
+                          ),
+                          if (ent.isPro) ...[
+                            SizedBox(width: 8.w),
+                            HiwGold.proPill(label: 'PRO', showCrown: true, fontSize: 10),
+                          ],
+                        ],
+                      ),
+                      Text(
+                        ent.isPro
+                            ? (ent.expiresAt != null
+                                ? 'Renews/Expires: ${ent.expiresAt!.toLocal().toIso8601String().split('T')[0]}'
+                                : 'Source: ${ent.source.name}')
+                            : 'Full basic nutrition, water & habits',
+                        style: TextStyle(color: t.mutedColor, fontSize: 12.sp),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 18.h),
+            Container(
+              padding: EdgeInsets.all(12.r),
+              decoration: BoxDecoration(
+                color: ent.isPro
+                    ? (Theme.of(context).brightness == Brightness.dark
+                        ? HiwGold.cardBgDark
+                        : HiwGold.cardBgLight)
+                    : t.cardBackground,
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(
+                  color: ent.isPro ? HiwGold.borderLight : t.cardStroke,
+                  width: ent.isPro ? 1.5 : 1.0,
+                ),
+                boxShadow: ent.isPro
+                    ? [HiwGold.subtleGlow(blur: 8.r, opacity: 0.2)]
+                    : null,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        ent.isPro
+                            ? '👑 Active Pro Privileges'
+                            : 'Entitlements & Features',
+                        style: TextStyle(
+                          color: ent.isPro ? HiwGold.deepGold : t.inkColor,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 6.h),
+                  Text(
+                    ent.isPro
+                        ? '• Unlimited AI meal plans & fasting timers\n'
+                          '• 365-day trend analytics & nutrient gaps\n'
+                          '• Generous fair-use photo & barcode limits\n'
+                          '• Special Gold status badge & ad-free experience'
+                        : '• Core food, water & habit tracking\n'
+                          '• 40 photo scans & 20 barcode scans / month\n'
+                          '• Unlimited food text search & Food Index\n'
+                          '• Basic avatar progression & daily rewards',
+                    style: TextStyle(
+                      color: t.mutedColor,
+                      fontSize: 12.sp,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16.h),
+            if (!ent.isPro) ...[
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: HiwGold.buttonGradient,
+                  borderRadius: BorderRadius.circular(14.r),
+                  boxShadow: [
+                    HiwGold.haloGlow(blur: 14.r, opacity: 0.4),
+                  ],
+                ),
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    foregroundColor: const Color(0xFF2C1400),
+                    padding: EdgeInsets.symmetric(vertical: 14.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14.r),
+                    ),
+                    elevation: 0,
+                  ),
+                  icon: const Text('👑', style: TextStyle(fontSize: 16)),
+                  label: Text(
+                    'Explore HIW Pro (7-Day Free Trial)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14.sp,
+                    ),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PaywallScreen()),
+                    );
+                    _loadUserData();
+                  },
+                ),
+              ),
+              SizedBox(height: 10.h),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: t.inkColor,
+                      side: BorderSide(color: t.cardStroke),
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      _showRedeemDialog(context);
+                    },
+                    child: Text('Redeem Code', style: TextStyle(fontSize: 12.sp)),
+                  ),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: t.inkColor,
+                      side: BorderSide(color: t.cardStroke),
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await BillingService.restore();
+                      await _loadUserData();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Purchases restored.')),
+                        );
+                      }
+                    },
+                    child: Text('Restore Purchases', style: TextStyle(fontSize: 12.sp)),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

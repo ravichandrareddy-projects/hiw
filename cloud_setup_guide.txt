@@ -53,11 +53,11 @@ A3. SWITCHES TO FLIP (3 toggles, all in dashboard)
      the code tells the user this automatically.)
 
 A4. SQL TO RUN (open: SQL Editor -> "New query" -> paste -> Run)
-  >>> GOOD NEWS: the app uses Supabase AUTH ONLY. NO tables are
-  >>> required for sign-up / sign-in / OTP. This section is testing
-  >>> helpers + one OPTIONAL future table. <<<
+  The app uses Supabase AUTH for login (no SQL needed for that).
+  BUT the app also mirrors meal logs + targets to the cloud, so
+  run Q4 ONCE to create those two tables. Q1-Q3 are testing helpers.
 
-  -- Q1. Confirm auth schema is healthy (expect: signed_up count row)
+  -- Q1. Confirm auth schema is healthy (expect: a count row)
   select count(*) as total_users from auth.users;
 
   -- Q2. List your test users (to see who registered)
@@ -70,17 +70,37 @@ A4. SQL TO RUN (open: SQL Editor -> "New query" -> paste -> Run)
   --     need this while testing):
   delete from auth.users where email = 'youremail@gmail.com';
 
-  -- Q4 (OPTIONAL, FUTURE ONLY — app does NOT read this today):
-  --     a private per-user profile table with row-level security.
-  --     Skip unless you want cloud profiles later.
+  -- Q4. REQUIRED ONCE: cloud tables the app syncs to.
+  --     Safe to re-run (IF NOT EXISTS). Row-level security keeps
+  --     every user locked to their own rows.
+  create table if not exists public.meal_logs (
+    id bigint generated always as identity primary key,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    food_name text not null,
+    calories int not null default 0,
+    protein double precision default 0,
+    carbs double precision default 0,
+    fats double precision default 0,
+    meal_type text default 'snack',
+    logged_at timestamptz default now()
+  );
   create table if not exists public.profiles (
     id uuid primary key references auth.users(id) on delete cascade,
     username text,
     target_calories int default 2000,
+    streak int default 0,
+    water_goal_ml int,
     updated_at timestamptz default now()
   );
+  alter table public.meal_logs enable row level security;
   alter table public.profiles enable row level security;
-  create policy "users manage own profile"
+  drop policy if exists "own meal logs" on public.meal_logs;
+  create policy "own meal logs"
+    on public.meal_logs for all
+    using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+  drop policy if exists "own profile" on public.profiles;
+  create policy "own profile"
     on public.profiles for all
     using (auth.uid() = id)
     with check (auth.uid() = id);

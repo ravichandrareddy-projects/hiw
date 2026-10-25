@@ -86,11 +86,13 @@ class ScannerScreen extends StatefulWidget {
     required List<ScannedItem> items,
   }) onFoodAnalyzed;
   final bool isActive;
+  final MealType? initialMeal;
 
   const ScannerScreen({
     super.key,
     required this.onFoodAnalyzed,
     required this.isActive,
+    this.initialMeal,
   });
 
   @override
@@ -115,7 +117,8 @@ class _ScannerScreenState extends State<ScannerScreen>
   Timer? _statusTimer;
 
   // Top mode: Scan | Text. Bottom kind: Food | Barcode (both kept).
-  bool _isTextMode = false;
+  // 🆕 Default to Text first when camera tab is clicked
+  bool _isTextMode = true;
   bool _isBarcode = false;
 
   late AnimationController _pulseController;
@@ -141,7 +144,11 @@ class _ScannerScreenState extends State<ScannerScreen>
   void didUpdateWidget(covariant ScannerScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive && !oldWidget.isActive) {
-      _initCamera();
+      // 🆕 When camera button is clicked, show Text screen first
+      _isTextMode = true;
+      if (!_ready && !_initializing) {
+        _initCamera();
+      }
     } else if (!widget.isActive && oldWidget.isActive) {
       _controller?.dispose();
       _controller = null;
@@ -343,7 +350,8 @@ class _ScannerScreenState extends State<ScannerScreen>
     });
   }
 
-  MealType _mealHint() => mealTypeFromTime(DateTime.now());
+  MealType _mealHint() =>
+      widget.initialMeal ?? mealTypeFromTime(DateTime.now());
 
   Future<void> _captureAndAnalyze() async {
     if (_controller == null ||
@@ -501,8 +509,6 @@ class _ScannerScreenState extends State<ScannerScreen>
       }
     }
     if (!mounted) return;
-    setState(() => _isAnalyzing = false);
-    _statusTimer?.cancel();
 
     final imgProvider = FileImage(shotFile);
     var normalized = FoodRecognitionResult.fromRecognition(
@@ -519,6 +525,8 @@ class _ScannerScreenState extends State<ScannerScreen>
         normalized.components.length > PlanConfig.freeComboFoods &&
         !(await EntitlementStore.current()).isPro) {
       if (!mounted) return;
+      setState(() => _isAnalyzing = false);
+      _statusTimer?.cancel();
       final keep = await showLimitSheet(
         context,
         title: 'Big plate detected',
@@ -539,10 +547,14 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
 
     if (normalized.status == FoodMatchStatus.notFood) {
+      setState(() => _isAnalyzing = false);
+      _statusTimer?.cancel();
       _showUnclearSheet(shotFile, result.itemName);
       return;
     }
     if (normalized.status == FoodMatchStatus.noMatch) {
+      setState(() => _isAnalyzing = false);
+      _statusTimer?.cancel();
       _showResultDialog(result, shotFile);
       return;
     }
@@ -554,7 +566,9 @@ class _ScannerScreenState extends State<ScannerScreen>
     AnalyticsService().log('scan_success');
 
     // Matched or low-confidence → shared result screen.
+    // Rainbow stays active until result screen opens!
     if (!mounted) return;
+    _statusTimer?.cancel();
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => FoodResultScreen(
@@ -569,7 +583,10 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
     if (!mounted) return;
     _controller?.resumePreview().ignore();
-    setState(() => _image = null);
+    setState(() {
+      _isAnalyzing = false;
+      _image = null;
+    });
     if (saved == true) {
       // Saved via shared pipeline (Nutrition/History/Health).
       // Keep legacy callback for existing Food tab listeners
@@ -991,16 +1008,23 @@ class _ScannerScreenState extends State<ScannerScreen>
   }
 
   void _openTextMode() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
-            FoodTextSearchScreen(initialMeal: _mealHint()),
-      ),
-    );
+    setState(() => _isTextMode = true);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isTextMode) {
+      return FoodTextSearchScreen(
+        initialMeal: _mealHint(),
+        onScanTap: () {
+          setState(() => _isTextMode = false);
+          if (!_ready && !_initializing) {
+            _initCamera();
+          }
+        },
+      );
+    }
+
     final t = HiwTheme.of(context);
 
     if (!_ready || _controller == null) {
@@ -1122,7 +1146,7 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   // ── TOP BAR: back + Scan/Text + flash (reference style) ──
           Positioned(
-            top: 52.h,
+            top: 14.h,
             left: 16.w,
             right: 16.w,
             child: Row(
@@ -1131,6 +1155,8 @@ class _ScannerScreenState extends State<ScannerScreen>
                   _controller?.resumePreview().ignore();
                   if (_image != null && mounted) {
                     setState(() => _image = null);
+                  } else if (mounted) {
+                    setState(() => _isTextMode = true);
                   }
                 }),
                 const Spacer(),
@@ -1160,18 +1186,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                                 () => _isTextMode = false);
                           }),
                           _segPill('Text', _isTextMode, t, () {
-                            setState(
-                                () => _isTextMode = true);
                             _openTextMode();
-                            Future.delayed(
-                                const Duration(
-                                    milliseconds: 400),
-                                () {
-                              if (mounted) {
-                                setState(() =>
-                                    _isTextMode = false);
-                              }
-                            });
                           }),
                         ],
                       ),
@@ -1184,16 +1199,63 @@ class _ScannerScreenState extends State<ScannerScreen>
             ),
           ),
 
-          // ── VIEWFINDER CORNERS (reference: bold white brackets) ──
+          // ── VIEWFINDER CORNERS (Barcode wide horizontal ratio vs Food square ratio) ──
           if (_image == null && !_isAnalyzing)
             Positioned.fill(
               child: IgnorePointer(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                      30.w, 150.h, 30.w, 250.h),
-                  child: const CustomPaint(
-                    painter: _CornerPainter(
-                        color: Colors.white),
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeInOutCubic,
+                    width: _isBarcode ? 310.w : 300.w,
+                    height: _isBarcode ? 135.h : 300.w,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _CornerPainter(
+                              color: _isBarcode
+                                  ? const Color(0xFF22C55E)
+                                  : Colors.white,
+                              cornerLength: _isBarcode ? 28.0 : 44.0,
+                            ),
+                          ),
+                        ),
+                        if (_isBarcode) ...[
+                          Center(
+                            child: Container(
+                              height: 2.h,
+                              margin: EdgeInsets.symmetric(horizontal: 14.w),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.9),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFEF4444).withValues(alpha: 0.7),
+                                    blurRadius: 8.r,
+                                    spreadRadius: 1.5.r,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Padding(
+                              padding: EdgeInsets.only(bottom: 8.h),
+                              child: Text(
+                                'ALIGN BARCODE IN FRAME',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontSize: 10.sp,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1202,7 +1264,7 @@ class _ScannerScreenState extends State<ScannerScreen>
           // ── CLEAR / RETAKE (glass) ──
           if (_image != null && !_isAnalyzing)
             Positioned(
-              top: 110.h,
+              top: 70.h,
               right: 20.w,
               child: GestureDetector(
                 onTap: () {
@@ -1478,7 +1540,8 @@ class _ScannerScreenState extends State<ScannerScreen>
 
 class _CornerPainter extends CustomPainter {
   final Color color;
-  const _CornerPainter({required this.color});
+  final double cornerLength;
+  const _CornerPainter({required this.color, this.cornerLength = 48.0});
   @override
   void paint(Canvas canvas, Size size) {
     final p = Paint()
@@ -1486,7 +1549,7 @@ class _CornerPainter extends CustomPainter {
       ..strokeWidth = 4.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
-    const l = 48.0;
+    final l = cornerLength.clamp(14.0, size.height / 2);
     // TL
     canvas.drawPath(
         Path()
@@ -1518,5 +1581,6 @@ class _CornerPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CornerPainter old) => old.color != color;
+  bool shouldRepaint(_CornerPainter old) =>
+      old.color != color || old.cornerLength != cornerLength;
 }

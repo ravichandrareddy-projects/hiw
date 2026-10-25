@@ -341,15 +341,18 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       child: Column(
         children: [
           OnbField(
-              label: 'Name / nickname',
-              hint: 'What should we call you?',
-              controller: _name),
+            label: 'Name / nickname',
+            hint: 'What should we call you?',
+            controller: _name,
+            onChanged: (_) => setState(() {}),
+          ),
           OnbField(
             label: 'Age',
-            hint: 'Years',
+            hint: 'Years (10–100)',
             controller: _age,
             keyboard: TextInputType.number,
             error: _basicsError,
+            onChanged: (_) => setState(() {}),
           ),
           SizedBox(height: 4.h),
           Align(
@@ -426,21 +429,26 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       child: Column(
         children: [
           OnbField(
-              label: 'Height',
-              hint: 'cm (e.g. 175)',
-              controller: _height,
-              keyboard: TextInputType.number),
+            label: 'Height',
+            hint: 'cm (e.g. 175)',
+            controller: _height,
+            keyboard: TextInputType.number,
+            onChanged: (_) => setState(() {}),
+          ),
           OnbField(
-              label: 'Current weight',
-              hint: 'kg (e.g. 75)',
-              controller: _weight,
-              keyboard: TextInputType.number),
+            label: 'Current weight',
+            hint: 'kg (e.g. 75)',
+            controller: _weight,
+            keyboard: TextInputType.number,
+            onChanged: (_) => setState(() {}),
+          ),
           OnbField(
             label: 'Goal weight (optional)',
             hint: 'kg — only if relevant',
             controller: _goalWeight,
             keyboard: TextInputType.number,
             error: _bodyError,
+            onChanged: (_) => setState(() {}),
           ),
         ],
       ),
@@ -458,32 +466,57 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       PrimaryGoal.improveNutrition: Icons.science_outlined,
       PrimaryGoal.buildHabits: Icons.repeat_rounded,
     };
+    final selectedGoals = <PrimaryGoal>{g.primary, ...g.secondary};
+
     return OnbScaffold(
       step: _shown,
       total: _total,
       title: 'What are you working toward?',
-      subtitle: 'Pick one primary goal. You can add more later.',
+      subtitle: 'Select one or more goals. Tap to select or change your primary priority.',
       onBack: () => _go(2),
+      nextEnabled: selectedGoals.isNotEmpty,
       onNext: () {
         _recalcPlan();
         _go(4);
       },
       child: Column(
-        children: PrimaryGoal.values
-            .map((goal) => OnbOption(
-                  title: goalLabel(goal),
-                  icon: icons[goal],
-                  selected: g.primary == goal,
-                  onTap: () => setState(() {
-                    if (g.primary != goal &&
-                        !g.secondary.contains(g.primary)) {
-                      g.secondary.add(g.primary);
-                    }
-                    g.secondary.remove(goal);
-                    g.primary = goal;
-                  }),
-                ))
-            .toList(),
+        children: PrimaryGoal.values.map((goal) {
+          final isSelected = selectedGoals.contains(goal);
+          final isPrimary = g.primary == goal;
+          return OnbOption(
+            title: goalLabel(goal),
+            icon: icons[goal],
+            selected: isSelected,
+            isMultiSelect: true,
+            isPrimary: isPrimary,
+            onTap: () => setState(() {
+              if (isSelected) {
+                if (selectedGoals.length > 1) {
+                  selectedGoals.remove(goal);
+                  g.secondary.remove(goal);
+                  if (g.primary == goal) {
+                    g.primary = selectedGoals.first;
+                    g.secondary.remove(g.primary);
+                  }
+                }
+              } else {
+                selectedGoals.add(goal);
+                if (!g.secondary.contains(goal) && g.primary != goal) {
+                  g.secondary.add(goal);
+                }
+              }
+            }),
+            onPrimaryTap: () => setState(() {
+              if (selectedGoals.contains(goal)) {
+                if (!g.secondary.contains(g.primary) && g.primary != goal) {
+                  g.secondary.add(g.primary);
+                }
+                g.secondary.remove(goal);
+                g.primary = goal;
+              }
+            }),
+          );
+        }).toList(),
       ),
     );
   }
@@ -491,11 +524,25 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   // ── 4. Activity ─────────────────────────────
   Widget _activity() {
     final p = _state.profile;
+    const icons = {
+      ActivityTier.sedentary: Icons.chair_outlined,
+      ActivityTier.lightlyActive: Icons.directions_walk_rounded,
+      ActivityTier.moderatelyActive: Icons.directions_run_rounded,
+      ActivityTier.veryActive: Icons.fitness_center_rounded,
+      ActivityTier.extremelyActive: Icons.bolt_rounded,
+    };
+    const subtitles = {
+      ActivityTier.sedentary: 'Desk job, mostly resting through the day',
+      ActivityTier.lightlyActive: '1–3 light walks or activities per week',
+      ActivityTier.moderatelyActive: '3–5 workouts or brisk active sessions per week',
+      ActivityTier.veryActive: '6–7 intense athletic training sessions per week',
+      ActivityTier.extremelyActive: 'Daily heavy physical work or competitive training',
+    };
     return OnbScaffold(
       step: _shown,
       total: _total,
       title: 'How active are you?',
-      subtitle: 'Be honest — this tunes your calorie estimate.',
+      subtitle: 'Be honest — this tunes your baseline calorie estimate.',
       onBack: () => _go(3),
       nextEnabled: p.activity != null,
       onNext: () {
@@ -506,7 +553,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         children: ActivityTier.values
             .map((a) => OnbOption(
                   title: activityLabel(a),
-                  icon: Icons.directions_walk_rounded,
+                  subtitle: subtitles[a],
+                  icon: icons[a],
                   selected: p.activity == a,
                   onTap: () =>
                       setState(() => p.activity = a),
@@ -519,11 +567,31 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   // ── 5. Diet ─────────────────────────────────
   Widget _diet() {
     final p = _state.profile;
+    final t = HiwTheme.of(context);
+    const primaryDiets = [
+      DietPreference.vegetarian,
+      DietPreference.nonVegetarian,
+      DietPreference.noPreference,
+    ];
+    const dietIcons = {
+      DietPreference.vegetarian: Icons.eco_rounded,
+      DietPreference.nonVegetarian: Icons.restaurant_rounded,
+      DietPreference.noPreference: Icons.all_inclusive_rounded,
+      DietPreference.vegan: Icons.spa_outlined,
+      DietPreference.eggetarian: Icons.egg_alt_outlined,
+      DietPreference.jain: Icons.nature_people_outlined,
+    };
+    const dietSubtitles = {
+      DietPreference.vegetarian: 'Plant-based foods, dairy, lentils, vegetables',
+      DietPreference.nonVegetarian: 'Meat, poultry, seafood, eggs & plants',
+      DietPreference.noPreference: 'Enjoy everything with no dietary restrictions',
+    };
+
     return OnbScaffold(
       step: _shown,
       total: _total,
       title: 'How do you usually eat?',
-      subtitle: 'Optional details help future recommendations.',
+      subtitle: 'Choose your main diet. You can add specific preferences below.',
       onBack: () => _go(4),
       skipLabel: 'Skip',
       onSkip: () {
@@ -537,17 +605,68 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         _go(6);
       },
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ...DietPreference.values.map((d) => OnbOption(
+          ...primaryDiets.map((d) => OnbOption(
                 title: dietLabel(d),
+                subtitle: dietSubtitles[d],
+                icon: dietIcons[d],
                 selected: p.diet == d,
                 onTap: () => setState(() => p.diet = d),
               )),
-          SizedBox(height: 6.h),
+          SizedBox(height: 12.h),
+          Text(
+            'Extended Preferences (Optional)',
+            style: TextStyle(
+              color: t.inkColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 14.sp,
+            ),
+          ),
+          SizedBox(height: 8.h),
+          Row(
+            children: [
+              DietPreference.vegan,
+              DietPreference.eggetarian,
+              DietPreference.jain,
+            ].map((d) {
+              final isSel = p.diet == d;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w),
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isSel ? Colors.white : t.inkColor,
+                      backgroundColor: isSel ? t.accentColor : t.cardBackground,
+                      side: BorderSide(
+                        color: isSel ? t.accentColor : t.cardStroke,
+                        width: isSel ? 1.5 : 1,
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 10.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                    onPressed: () => setState(() => p.diet = d),
+                    child: Text(
+                      dietLabel(d),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          SizedBox(height: 16.h),
           OnbField(
-            label: 'Restrictions (optional)',
-            hint: 'e.g. lactose, gluten — comma separated',
+            label: 'Allergies & Restrictions (optional)',
+            hint: 'e.g. lactose, gluten, nuts — comma separated',
             controller: _restrictions,
+            onChanged: (_) => setState(() {}),
           ),
         ],
       ),
@@ -731,39 +850,66 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14.r),
                 ),
+                backgroundColor: t.cardBackground,
               ),
               onPressed: () async {
-                final s = await Permission.locationWhenInUse
-                    .request();
+                final s = await Permission.locationWhenInUse.request();
                 if (!mounted) return;
                 if (s.isGranted) {
-                  // Approximate region only: keep manual fields as the
-                  // confirmed source, mark auto for future FoodIndex use.
                   setState(() => _state.region.manual = false);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                         content: Text(
                             'Location allowed — confirm your State below.')),
                   );
+                } else if (s.isPermanentlyDenied) {
+                  await openAppSettings();
                 } else {
-                  if (mounted) {
-                    await openAppSettings();
-                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Location permission denied.'),
+                      action: SnackBarAction(
+                        label: 'Settings',
+                        onPressed: () => openAppSettings(),
+                      ),
+                    ),
+                  );
                 }
               },
-              icon: const Icon(Icons.my_location_rounded),
-              label: const Text('Allow Location'),
+              icon: Icon(Icons.my_location_rounded, color: t.accentColor),
+              label: const Text('Allow Location Permission'),
             ),
           ),
-          SizedBox(height: 14.h),
+          SizedBox(height: 8.h),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => openAppSettings(),
+              icon: Icon(Icons.settings_outlined, size: 16.sp, color: t.mutedColor),
+              label: Text(
+                'Open App Location Settings',
+                style: TextStyle(color: t.mutedColor, fontSize: 12.sp),
+              ),
+            ),
+          ),
+          SizedBox(height: 12.h),
           OnbField(
-              label: 'State', hint: 'e.g. Telangana', controller: _stateName),
+            label: 'State',
+            hint: 'e.g. Telangana, Maharashtra, Karnataka',
+            controller: _stateName,
+            onChanged: (_) => setState(() {}),
+          ),
           OnbField(
-              label: 'District (optional)',
-              hint: 'e.g. Hyderabad',
-              controller: _district),
+            label: 'District (optional)',
+            hint: 'e.g. Hyderabad, Pune, Bengaluru',
+            controller: _district,
+            onChanged: (_) => setState(() {}),
+          ),
           OnbField(
-              label: 'Country', hint: 'e.g. India', controller: _country),
+            label: 'Country',
+            hint: 'e.g. India',
+            controller: _country,
+            onChanged: (_) => setState(() {}),
+          ),
         ],
       ),
     );

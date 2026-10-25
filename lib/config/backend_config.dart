@@ -20,4 +20,7 @@ class BackendConfig {
 
   static bool get hasSupabase =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
+
+  /// Feature flag: Temporarily disable Mood Checker entry points & auto-scheduler.
+  static const bool moodCheckerEnabled = false;
 }

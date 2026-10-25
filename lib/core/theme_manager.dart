@@ -28,6 +28,8 @@ class ThemeManager extends ChangeNotifier {
   Color? _customBg;
   Color? _customCard;
   Color? _customPrimary;
+  Color? _bottomNavBg;
+  Color? _bottomNavSelection;
 
   // Plain defaults used when the user hasn't picked a custom color yet.
   static const Color _plainBg = Color(0xFFFBF7EF);
@@ -37,6 +39,8 @@ class ThemeManager extends ChangeNotifier {
   Color get customizeBg => _customBg ?? _plainBg;
   Color get customizeCard => _customCard ?? _plainCard;
   Color get customizePrimary => _customPrimary ?? _plainPrimary;
+  Color? get bottomNavBg => _bottomNavBg;
+  Color? get bottomNavSelection => _bottomNavSelection;
 
   // Getters
   Color? get backgroundColorOverride => _backgroundColorOverride;
@@ -118,9 +122,13 @@ class ThemeManager extends ChangeNotifier {
     final bg = await AppState.getCustomColor('bg');
     final card = await AppState.getCustomColor('card');
     final primary = await AppState.getCustomColor('primary');
+    final bNavBg = await AppState.getCustomColor('bottomNavBg');
+    final bNavSel = await AppState.getCustomColor('bottomNavSelection');
     if (bg != null) _customBg = Color(bg);
     if (card != null) _customCard = Color(card);
     if (primary != null) _customPrimary = Color(primary);
+    if (bNavBg != null) _bottomNavBg = Color(bNavBg);
+    if (bNavSel != null) _bottomNavSelection = Color(bNavSel);
     notifyListeners();
   }
 
@@ -164,7 +172,7 @@ class ThemeManager extends ChangeNotifier {
   // -------------------------
   // CUSTOMIZE THEME (persisted)
   // -------------------------
-  Future<void> setCustomColor(String which, Color color) async {
+  Future<void> setCustomColor(String which, Color? color) async {
     switch (which) {
       case 'bg':
         _customBg = color;
@@ -175,10 +183,28 @@ class ThemeManager extends ChangeNotifier {
       case 'primary':
         _customPrimary = color;
         break;
+      case 'bottomNavBg':
+        _bottomNavBg = color;
+        break;
+      case 'bottomNavSelection':
+        _bottomNavSelection = color;
+        break;
       default:
         return;
     }
-    await AppState.setCustomColor(which, color.toARGB32());
+    if (color == null) {
+      await AppState.setCustomColor(which, -1);
+    } else {
+      await AppState.setCustomColor(which, color.toARGB32());
+    }
+    notifyListeners();
+  }
+
+  Future<void> resetBottomNavColors() async {
+    _bottomNavBg = null;
+    _bottomNavSelection = null;
+    await AppState.setCustomColor('bottomNavBg', -1);
+    await AppState.setCustomColor('bottomNavSelection', -1);
     notifyListeners();
   }
 
@@ -186,6 +212,8 @@ class ThemeManager extends ChangeNotifier {
     _customBg = null;
     _customCard = null;
     _customPrimary = null;
+    _bottomNavBg = null;
+    _bottomNavSelection = null;
     await AppState.clearCustomColors();
     notifyListeners();
   }

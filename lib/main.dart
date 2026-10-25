@@ -11,7 +11,7 @@ import 'screens/avatar_screen.dart';
 import 'screens/tester_code_screen.dart';
 import 'screens/onboarding/onboarding_flow.dart';
 import 'auth/auth_welcome.dart';
-import 'screens/mood_support_screen.dart';
+// import 'screens/mood_support_screen.dart'; // 🚫 Disabled
 import 'screens/update_log_screen.dart'; // 🆕
 import 'screens/splash_screen.dart'; // 🆕 HIW brand splash
 import 'package:shared_preferences/shared_preferences.dart'; // 🆕
@@ -37,10 +37,11 @@ import 'core/food_addons_config.dart'; // 🆕
 // services
 import 'services/notification_service.dart';
 import 'services/version_service.dart';
-import 'services/mood_check_scheduler.dart';
+// import 'services/mood_check_scheduler.dart'; // 🚫 Disabled
 import 'services/food_recognition_service.dart'; // 🆕 ScannedItem
+import 'core/food_item.dart'; // 🆕 MealType
 import 'widgets/premium_glass_card.dart'; // 🆕
-import 'widgets/mood_check_overlay.dart'; // 🆕 Mood check overlay
+// import 'widgets/mood_check_overlay.dart'; // 🚫 Disabled
 
 // events manager
 import 'events/event_manager.dart';
@@ -116,17 +117,16 @@ class _BootScreenState extends State<_BootScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Static brand frame — no ScreenUtil/Hive/theme deps so it paints fast.
-    return const Scaffold(
-      backgroundColor: Color(0xFFFBF7EF),
+    // Exactly 90x90 matching android launch_image (90dp) pixel-for-pixel
+    return Scaffold(
+      backgroundColor: const Color(0xFFFBF7EF),
       body: Center(
-        child: Text(
-          'HIW',
-          style: TextStyle(
-            fontSize: 84,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 4,
-            color: Color(0xFF0B6B3A),
+        child: SizedBox(
+          width: 90,
+          height: 90,
+          child: Image.asset(
+            'assets/logo.png',
+            fit: BoxFit.contain,
           ),
         ),
       ),
@@ -182,7 +182,6 @@ class _AppGateState extends State<AppGate> {
 
   @override
   Widget build(BuildContext context) {
-    // 🆕 Brand splash first (3s, tap to skip), then the tester gate.
     if (!_splashDone) {
       return SplashScreen(
         onDone: () {
@@ -190,12 +189,14 @@ class _AppGateState extends State<AppGate> {
         },
       );
     }
+
     return FutureBuilder<Widget>(
       future: _decide(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            backgroundColor: Color(0xFFFBF7EF),
+            body: SizedBox.shrink(),
           );
         }
         return snapshot.data!;
@@ -245,6 +246,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 1;
+  MealType? _scannerMealOverride;
   bool _showUpdateLogPrompt = false;
 
   // -------------------------
@@ -270,7 +272,7 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _initAvatar();
-    _initMoodScheduler();
+    // _initMoodScheduler(); // 🚫 Mood check disabled
     _checkUpdateLogPrompt(); // 🆕 Check if we should prompt for update log
   }
 
@@ -312,7 +314,8 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
-  // 🆕 Initialize mood check scheduler
+  // 🆕 Initialize mood check scheduler (DISABLED)
+  /*
   void _initMoodScheduler() {
     MoodCheckScheduler().init(() {
       if (mounted) {
@@ -379,6 +382,7 @@ class _MainShellState extends State<MainShell> {
       ),
     );
   }
+  */
 
   // -------------------------
   // SCANNER → FOOD
@@ -479,10 +483,17 @@ class _MainShellState extends State<MainShell> {
             quantity: scannedQuantity,
             nutritionRecord: scannedNutritionRecord,
             items: scannedItems,
+            onOpenScanner: (meal) {
+              setState(() {
+                _scannerMealOverride = meal;
+                _currentIndex = 2; // Switch to camera/scanner tab
+              });
+            },
           ))),
       _wrapWithEvent(ScannerScreen(
         onFoodAnalyzed: _onFoodAnalyzed,
         isActive: _currentIndex == 2,
+        initialMeal: _scannerMealOverride,
       )),
       _wrapWithEvent(Padding(
           padding: EdgeInsets.only(top: 48.h), child: const HistoryScreen())),

@@ -7,6 +7,7 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../firebase_options.dart';
 
 class AnalyticsService {
   static final AnalyticsService _i = AnalyticsService._internal();
@@ -17,13 +18,16 @@ class AnalyticsService {
 
   bool _firebaseReady = false;
 
-  /// Guarded Firebase init. Safe without google-services.json
-  /// (stays local-only). Called from HIWBootApp._boot.
+  /// Guarded Firebase init with platform options.
   Future<void> init() async {
     try {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
       _firebaseReady = true;
-    } catch (_) {
+      debugPrint('🔥 Firebase Analytics initialized with project options');
+    } catch (e) {
+      debugPrint('⚠️ Firebase init error: $e');
       _firebaseReady = false;
     }
   }
@@ -58,7 +62,7 @@ class AnalyticsService {
 
   /// Local count + debug log + Firebase mirror (when ready).
   /// Same call sites regardless of backend state — zero UI churn.
-  Future<void> log(String event) async {
+  Future<void> log(String event, [Map<String, Object>? parameters]) async {
     if (!allowed.contains(event)) return;
     if (await isOptedOut()) return;
     try {
@@ -68,10 +72,15 @@ class AnalyticsService {
     } catch (_) {}
     if (_firebaseReady) {
       try {
-        await FirebaseAnalytics.instance.logEvent(name: event);
-      } catch (_) {}
+        await FirebaseAnalytics.instance.logEvent(
+          name: event,
+          parameters: parameters,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Firebase logEvent error: $e');
+      }
     }
-    debugPrint('HIW ANALYTICS: $event');
+    debugPrint('HIW ANALYTICS: $event ${parameters ?? ""}');
   }
 
   Future<int> count(String event) async {

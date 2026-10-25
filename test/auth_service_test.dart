@@ -36,19 +36,25 @@ void main() {
     );
   });
 
-  test('Register then OTP verify works', () async {
+  test('Register directly returns AuthUser without OTP', () async {
     final p = MockAuthProvider();
-    await p.register('newuser@gmail.com', 'abcd');
-    final u = await p.verifyOtp('newuser@gmail.com', '123456');
+    final u = await p.register('newuser@gmail.com', 'abcd', username: 'Alex');
     expect(u.email, 'newuser@gmail.com');
-    expect(
-      () => p.verifyOtp('newuser@gmail.com', '000000'),
-      throwsA(isA<AuthException>()),
-    );
+    expect(u.username, 'Alex');
+    // Can login directly
+    final loggedIn = await p.login('newuser@gmail.com', 'abcd');
+    expect(loggedIn.email, 'newuser@gmail.com');
     expect(
       () => p.register('newuser@gmail.com', 'abcd'),
       throwsA(isA<AuthException>()),
     );
+  });
+
+  test('Google sign-in works cleanly', () async {
+    final p = MockAuthProvider();
+    final u = await p.signInWithGoogle();
+    expect(u.email, 'google_user@gmail.com');
+    expect(u.username, 'Google User');
   });
 
   test('Passwords stored hashed, never plaintext', () async {

@@ -67,6 +67,7 @@ flutter:
 
   assets:
     - assets/
+    - assets/food_data/
     - assets/christmas/
     - assets/sankranti/
     - assets/new_year/

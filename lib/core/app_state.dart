@@ -133,23 +133,57 @@ class AppState {
   static const _customBgKey = 'customBg';
   static const _customCardKey = 'customCard';
   static const _customPrimaryKey = 'customPrimary';
+  static const _bottomNavBgKey = 'bottomNavBgColor';
+  static const _bottomNavSelectionKey = 'bottomNavSelectionColor';
 
   static Future<int?> getCustomColor(String which) async {
     final prefs = await SharedPreferences.getInstance();
+    int? val;
     switch (which) {
       case 'bg':
-        return prefs.getInt(_customBgKey);
+        val = prefs.getInt(_customBgKey);
+        break;
       case 'card':
-        return prefs.getInt(_customCardKey);
+        val = prefs.getInt(_customCardKey);
+        break;
       case 'primary':
-        return prefs.getInt(_customPrimaryKey);
+        val = prefs.getInt(_customPrimaryKey);
+        break;
+      case 'bottomNavBg':
+        val = prefs.getInt(_bottomNavBgKey);
+        break;
+      case 'bottomNavSelection':
+        val = prefs.getInt(_bottomNavSelectionKey);
+        break;
       default:
         return null;
     }
+    if (val == null || val == -1) return null;
+    return val;
   }
 
   static Future<void> setCustomColor(String which, int argb) async {
     final prefs = await SharedPreferences.getInstance();
+    if (argb == -1) {
+      switch (which) {
+        case 'bg':
+          await prefs.remove(_customBgKey);
+          break;
+        case 'card':
+          await prefs.remove(_customCardKey);
+          break;
+        case 'primary':
+          await prefs.remove(_customPrimaryKey);
+          break;
+        case 'bottomNavBg':
+          await prefs.remove(_bottomNavBgKey);
+          break;
+        case 'bottomNavSelection':
+          await prefs.remove(_bottomNavSelectionKey);
+          break;
+      }
+      return;
+    }
     switch (which) {
       case 'bg':
         await prefs.setInt(_customBgKey, argb);
@@ -160,6 +194,12 @@ class AppState {
       case 'primary':
         await prefs.setInt(_customPrimaryKey, argb);
         break;
+      case 'bottomNavBg':
+        await prefs.setInt(_bottomNavBgKey, argb);
+        break;
+      case 'bottomNavSelection':
+        await prefs.setInt(_bottomNavSelectionKey, argb);
+        break;
     }
   }
 
@@ -168,6 +208,8 @@ class AppState {
     await prefs.remove(_customBgKey);
     await prefs.remove(_customCardKey);
     await prefs.remove(_customPrimaryKey);
+    await prefs.remove(_bottomNavBgKey);
+    await prefs.remove(_bottomNavSelectionKey);
   }
 
   // 🌱 ONBOARDING / PERSONALIZATION (v1, survives logout like theme)
@@ -382,6 +424,8 @@ class AppState {
       _customBgKey,
       _customCardKey,
       _customPrimaryKey,
+      _bottomNavBgKey,
+      _bottomNavSelectionKey,
       _splashSecondsKey,
       _onboardingV1Key,
       _usernameKey,

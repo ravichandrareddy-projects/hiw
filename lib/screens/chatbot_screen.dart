@@ -2,7 +2,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart'; // 🆕 Hive for chat persistence
-import '../services/gemini_service.dart';
 
 import '../services/greeting_detection_service.dart'; // 🆕 AI greeting detection
 import '../widgets/premium_glass_card.dart';
@@ -17,6 +16,12 @@ import '../avatar/avatar_store.dart';
 import '../hive/chat_hive_model.dart'; // 🆕 Chat model
 import 'mood_support_screen.dart'; // 🆕 Mood support chatbot
 import '../themes/hiw_theme.dart';
+import '../themes/hiw_gold.dart';
+import '../config/backend_config.dart';
+import '../core/ai/ai_provider.dart';
+import '../core/nutrition_store.dart';
+import '../core/water_store.dart';
+import '../core/habit_engine.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -294,13 +299,14 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     // 🆕 Save user message to Hive
     await _saveMessage(text, 'user');
 
-    // 🆕 Auto-trigger Mood Support if user mentions feeling bad
+    // 🆕 Auto-trigger Mood Support if user mentions feeling bad (guarded by feature flag)
     final lowerText = text.toLowerCase();
-    if (lowerText.contains("feeling bad") ||
-        lowerText.contains("stressed") ||
-        lowerText.contains("not good") ||
-        lowerText.contains("im bad") ||
-        lowerText.contains("unhappy")) {
+    if (BackendConfig.moodCheckerEnabled &&
+        (lowerText.contains("feeling bad") ||
+            lowerText.contains("stressed") ||
+            lowerText.contains("not good") ||
+            lowerText.contains("im bad") ||
+            lowerText.contains("unhappy"))) {
       if (!mounted) return;
       Navigator.push(
         context,
@@ -351,7 +357,20 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
     final idem =
         'chat_${_currentSessionId ?? 'new'}_${text.hashCode}';
-    final String reply = await GeminiService.ask(text);
+    final store = NutritionStore();
+    final contextData = {
+      'date': DateTime.now().toIso8601String().split('T')[0],
+      'targetCalories': store.dailyTargetCalories,
+      'consumedCalories': store.totalCalories,
+      'remainingCalories': store.dailyTargetCalories - store.totalCalories,
+      'proteinGrams': store.totalProtein,
+      'waterTicks': WaterStore().waterTicks,
+      'streakDays': HabitEngine().streakDays(),
+    };
+    final String reply = await AiManager().chatProvider.ask(
+      text,
+      context: contextData,
+    );
     UsageStore.consumeChat(idem: idem);
     AnalyticsService().log('chat_sent');
 
@@ -562,29 +581,33 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                       ),
                       const Spacer(),
                       // Question counter (unified daily quota; Pro = fair use)
-                      PremiumGlassCard(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 10.w, vertical: 6.h),
-                        borderRadius: 12,
-                        isInnerPill: true,
-                        child: Row(
-                          children: [
-                            Icon(Icons.bolt,
-                                color: accent, size: 14),
-                            SizedBox(width: 4.w),
-                            Text(
-                              _isPro
-                                  ? 'Pro • unlimited'
-                                  : '$_chatLeft/${PlanConfig.freeChatPerDay} answers',
-                              style: TextStyle(
-                                color: accent,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 10.sp,
+                      if (_isPro)
+                        HiwGold.proPill(
+                            label: 'UNLIMITED AI',
+                            showCrown: true,
+                            fontSize: 10)
+                      else
+                        PremiumGlassCard(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 10.w, vertical: 6.h),
+                          borderRadius: 12,
+                          isInnerPill: true,
+                          child: Row(
+                            children: [
+                              Icon(Icons.bolt,
+                                  color: accent, size: 14),
+                              SizedBox(width: 4.w),
+                              Text(
+                                '$_chatLeft/${PlanConfig.freeChatPerDay} answers',
+                                style: TextStyle(
+                                  color: accent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10.sp,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),

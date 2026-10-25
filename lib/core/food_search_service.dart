@@ -85,10 +85,12 @@ class FoodSearchService {
 
   final Map<String, List<FoodSearchHit>> _cache = {};
 
-  List<FoodSearchHit> search(String query, {int limit = 10}) {
+  List<FoodSearchHit> search(String query, {int limit = 10, String? category}) {
     final q = normalizeFoodQuery(query);
     if (q.isEmpty) return const [];
-    if (_cache.containsKey(q)) return _cache[q]!.take(limit).toList();
+    final catKey = (category == null || category == 'All') ? 'all' : category.toLowerCase();
+    final cacheKey = '$q|$catKey';
+    if (_cache.containsKey(cacheKey)) return _cache[cacheKey]!.take(limit).toList();
 
     final db = FoodNutritionDatabase();
     if (!db.isLoaded) return const [];
@@ -104,6 +106,15 @@ class FoodSearchService {
     });
 
     for (final rec in db.records) {
+      // Category filter check if specified
+      if (catKey != 'all') {
+        final reg = rec.region.toLowerCase();
+        final diet = rec.diet.toLowerCase();
+        if (!reg.contains(catKey) && !diet.contains(catKey)) {
+          continue;
+        }
+      }
+
       final name = normalizeFoodQuery(rec.name);
       double score = 0;
       String? alias;
@@ -147,8 +158,8 @@ class FoodSearchService {
     hits.sort((a, b) => b.score.compareTo(a.score));
     final out = hits.take(limit).toList();
     // cache small result sets
-    if (_cache.length > 40) _cache.clear();
-    _cache[q] = out;
+    if (_cache.length > 60) _cache.clear();
+    _cache[cacheKey] = out;
     return out;
   }
 

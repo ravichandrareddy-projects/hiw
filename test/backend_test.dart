@@ -18,7 +18,7 @@ void main() {
         throwsA(isA<AuthException>()));
     expect(() => p.register('a@b.io', '1234'),
         throwsA(isA<AuthException>()));
-    expect(() => p.verifyOtp('a@b.io', '123456'),
+    expect(() => p.signInWithGoogle(),
         throwsA(isA<AuthException>()));
   });
 

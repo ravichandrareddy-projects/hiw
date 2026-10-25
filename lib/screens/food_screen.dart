@@ -1,6 +1,7 @@
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // normal widgets
 import '../widgets/glass_card.dart';
@@ -11,6 +12,7 @@ import 'purchases_screen.dart';
 import 'daily_quest_screen.dart';
 import 'generic_addons_screen.dart';
 import 'history_screen.dart';
+import 'scanner_screen.dart';
 
 // 🧠 CORE LOGIC
 import '../core/nutrition_store.dart';
@@ -28,6 +30,10 @@ import '../core/app_state.dart'; // 🆕
 // 🧍 AVATAR LOGIC
 import '../avatar/avatar_logic.dart';
 import '../avatar/avatar_store.dart';
+import '../core/progression_engine.dart';
+import '../core/subscription/entitlement.dart';
+import '../themes/hiw_gold.dart';
+import 'level_progress_screen.dart';
 
 class FoodScreen extends StatefulWidget {
   final void Function({
@@ -42,6 +48,7 @@ class FoodScreen extends StatefulWidget {
 
   /// Every distinct item from the scan (dosa + chutney + sambar …).
   final List<ScannedItem> items;
+  final void Function(MealType meal)? onOpenScanner;
 
   const FoodScreen({
     super.key,
@@ -52,6 +59,7 @@ class FoodScreen extends StatefulWidget {
     this.quantity = 1.0,
     this.nutritionRecord,
     this.items = const [],
+    this.onOpenScanner,
   });
 
   @override
@@ -79,6 +87,7 @@ class _FoodScreenState extends State<FoodScreen> {
   bool _showMoreNutrition = false; // 🆕 Expandable micronutrients
   final meals = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
   String _displayName = 'User'; // 👤 DYNAMIC NAME
+  bool _isPro = false; // 👑 Pro entitlement for gold effects
 
   /// Live view of the personalized target (onboarding/profile can
   /// change it at any time — no stale cached copy).
@@ -145,6 +154,8 @@ class _FoodScreenState extends State<FoodScreen> {
       if (name != null) {
         if (mounted) setState(() => _displayName = name);
       }
+      final pro = (await EntitlementStore.current()).isPro;
+      if (mounted) setState(() => _isPro = pro);
       // Existing users with the streak flag: keep the evening nudge alive.
       try {
         if (await AppState.isReminderEnabled('streak')) {
@@ -630,100 +641,234 @@ class _FoodScreenState extends State<FoodScreen> {
             secondChild: const SizedBox.shrink(),
           ),
 
-          SizedBox(height: 8.h),
+          SizedBox(height: 10.h),
 
-          // ── Push To Avatar ──
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () {
-                if (confirmedFood == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Add food first before pushing to avatar'),
-                    ),
-                  );
-                  return;
-                }
+          // ── Action Row: Push To Avatar (Moved to Left) + Big Gold + Log Food (Right) ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // 👈 LEFT SIDE: Push To Avatar
+              _pushToAvatarButton(t),
 
-                final quality = widget.healthyScore >= 50
-                    ? FoodQuality.healthy
-                    : FoodQuality.junk;
+              // 👉 RIGHT SIDE: Big Gold + with floating "Log Food" on top
+              _goldLogFoodButton(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-                final result = AvatarLogic.calculateHealthEnergy(
-                  mealQuality: quality,
-                  totalDailyCalories: _nutritionStore.totalCalories,
-                  targetCalories: dailyTargetCalories,
-                  weeklyJunkCount: _avatarStore.weeklyJunkCount,
-                  mealIndex: selectedMeal,
-                  currentTime: DateTime.now(),
-                );
+  /// 👈 Push To Avatar action button (moved to the left side)
+  Widget _pushToAvatarButton(HiwTheme t) {
+    return GestureDetector(
+      onTap: () {
+        if (confirmedFood == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Add food first before pushing to avatar'),
+            ),
+          );
+          return;
+        }
 
-                _avatarStore.applyHealthEnergy(
-                  healthDelta: result.healthDelta,
-                  energyBase: result.energyBase,
-                  energyBonus: result.energyBonus,
-                  isBonusEligible: result.isBonusEligible,
-                  junkConsumed: result.junkConsumed,
-                );
+        final quality = widget.healthyScore >= 50
+            ? FoodQuality.healthy
+            : FoodQuality.junk;
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Avatar updated')),
-                );
+        final result = AvatarLogic.calculateHealthEnergy(
+          mealQuality: quality,
+          totalDailyCalories: _nutritionStore.totalCalories,
+          targetCalories: dailyTargetCalories,
+          weeklyJunkCount: _avatarStore.weeklyJunkCount,
+          mealIndex: selectedMeal,
+          currentTime: DateTime.now(),
+        );
 
-                setState(() {
-                  confirmedFood = null;
-                  _lastAddedCount = 0;
-                  scannedFoodImage = null;
-                  detectedFoodLabel = null;
-                  _scanQuantity = 1.0;
-                  _scanRecord = null;
-                  widget.onUpdateAvatar(dailyRaw: 0);
-                });
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 22.w, vertical: 11.h),
-                decoration: BoxDecoration(
-                  // Signature blue action gradient in every theme.
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF3A86FF), Color(0xFF00E5FF)],
+        _avatarStore.applyHealthEnergy(
+          healthDelta: result.healthDelta,
+          energyBase: result.energyBase,
+          energyBonus: result.energyBonus,
+          isBonusEligible: result.isBonusEligible,
+          junkConsumed: result.junkConsumed,
+        );
+
+        ProgressionEngine()
+            .awardXP(20, title: 'Meal Logged', category: 'meal');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Avatar updated')),
+        );
+
+        setState(() {
+          confirmedFood = null;
+          _lastAddedCount = 0;
+          scannedFoodImage = null;
+          detectedFoodLabel = null;
+          _scanQuantity = 1.0;
+          _scanRecord = null;
+          widget.onUpdateAvatar(dailyRaw: 0);
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 11.h),
+        decoration: BoxDecoration(
+          // Signature blue action gradient in every theme.
+          gradient: const LinearGradient(
+            colors: [Color(0xFF3A86FF), Color(0xFF00E5FF)],
+          ),
+          borderRadius: BorderRadius.circular(24.r),
+          border: t.isMinimal
+              ? null
+              : Border.all(color: Colors.white.withValues(alpha: 0.28)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF3A86FF).withValues(alpha: 0.35),
+              blurRadius: 14.r,
+              spreadRadius: 1.r,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.arrow_upward, color: Colors.white, size: 16),
+            SizedBox(width: 6.w),
+            Text(
+              'Push To Avatar',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 13.sp,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 👉 Big Gold + button with floating "Log Food" pill on top (triggers camera log for selected meal)
+  Widget _goldLogFoodButton() {
+    return GestureDetector(
+      onTap: _openScannerForCurrentMeal,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 🏷️ Floating "Log Food" badge on top of the button
+          Container(
+            margin: EdgeInsets.only(bottom: 4.h),
+            padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 3.h),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2B2D31),
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(
+                color: const Color(0xFFFFD700).withValues(alpha: 0.8),
+                width: 0.9.w,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.25),
+                  blurRadius: 8.r,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.add_rounded, size: 11, color: Color(0xFFFFD700)),
+                SizedBox(width: 3.w),
+                Text(
+                  'Log ${meals[selectedMeal]}',
+                  style: TextStyle(
+                    color: const Color(0xFFFFD700),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 10.sp,
+                    letterSpacing: 0.3,
                   ),
-                  borderRadius: BorderRadius.circular(28.r),
-                  border: t.isMinimal
-                      ? null
-                      : Border.all(
-                          color: Colors.white.withValues(alpha: 0.28)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF3A86FF)
-                          .withValues(alpha: 0.35),
-                      blurRadius: 14.r,
-                      spreadRadius: 1.r,
-                    ),
-                  ],
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.arrow_upward,
-                        color: Colors.white, size: 17),
-                    SizedBox(width: 7.w),
-                    Text(
-                      'Push To Avatar',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14.sp,
-                      ),
-                    ),
-                  ],
+              ],
+            ),
+          ),
+          // 🏆 Big Gold + Button
+          Container(
+            width: 48.w,
+            height: 48.w,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFFFFF7D6),
+                  Color(0xFFFFD700),
+                  Color(0xFFF59E0B),
+                  Color(0xFFB45309),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: const Color(0xFFFFF2A8),
+                width: 1.5.w,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.55),
+                  blurRadius: 14.r,
+                  spreadRadius: 1.5.r,
+                  offset: Offset(0, 3.r),
                 ),
+              ],
+            ),
+            child: Center(
+              child: Icon(
+                Icons.add_rounded,
+                size: 30.sp,
+                color: const Color(0xFF3B1E00),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// 📸 Open camera screen to log for whichever meal type is currently selected
+  void _openScannerForCurrentMeal() {
+    HapticFeedback.mediumImpact();
+    final meal = MealType.values[selectedMeal.clamp(0, MealType.values.length - 1)];
+    if (widget.onOpenScanner != null) {
+      widget.onOpenScanner!(meal);
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ScannerScreen(
+            onFoodAnalyzed: ({
+              required ImageProvider image,
+              required String label,
+              required double healthyScore,
+              required double quantity,
+              FoodNutritionRecord? nutritionRecord,
+              required List<ScannedItem> items,
+            }) {
+              if (mounted) {
+                setState(() {
+                  scannedFoodImage = image;
+                  detectedFoodLabel = label;
+                  _scanQuantity = quantity;
+                  _scanRecord = nutritionRecord;
+                  _scanItems = items;
+                  _scanApplied = true;
+                });
+              }
+            },
+            isActive: true,
+            initialMeal: meal,
+          ),
+        ),
+      );
+    }
   }
 
   // ── Small grid card for Carbs/Protein/Fats/Fiber (macro-tinted) ──
@@ -886,6 +1031,21 @@ class _FoodScreenState extends State<FoodScreen> {
               );
             }),
           ),
+          SizedBox(height: 8.h),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6.r),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0.0, end: (count / 16.0).clamp(0.0, 1.0)),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOutCubic,
+              builder: (context, val, _) => LinearProgressIndicator(
+                value: val,
+                minHeight: 5.h,
+                backgroundColor: Colors.lightBlueAccent.withValues(alpha: 0.15),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.lightBlueAccent),
+              ),
+            ),
+          ),
           SizedBox(height: 10.h),
           SizedBox(
             width: double.infinity,
@@ -909,6 +1069,7 @@ class _FoodScreenState extends State<FoodScreen> {
 
                           if (success) {
                             _avatarStore.addStaminaFromWater();
+                            ProgressionEngine().awardXP(10, title: 'Hydrated (+1 Glass)', category: 'water');
                             messenger.showSnackBar(
                               const SnackBar(
                                 content: Text(
@@ -1134,49 +1295,134 @@ class _FoodScreenState extends State<FoodScreen> {
 
   Widget _avatarBadge() {
     final accent = Theme.of(context).primaryColor;
-    final level = _activeStreak() <= 0 ? 1 : _activeStreak();
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        Container(
-          width: 56.w,
-          height: 56.h,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: accent.withValues(alpha: 0.15),
-            border: Border.all(color: accent, width: 2.w),
-            boxShadow: [
-              BoxShadow(
-                color: accent.withValues(alpha: 0.35),
-                blurRadius: 12.r,
+    final engineLevel = ProgressionEngine().currentLevel;
+    final level = engineLevel > 0 ? engineLevel : (_activeStreak() <= 0 ? 1 : _activeStreak());
+
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LevelProgressScreen()),
+        );
+        final pro = (await EntitlementStore.current()).isPro;
+        if (mounted) {
+          setState(() => _isPro = pro);
+        }
+      },
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          if (_isPro) ...[
+            // 👑 Radiant Gold Border & Ambient Glow for Pro Members
+            Container(
+              width: 58.w,
+              height: 58.h,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: HiwGold.goldGradient,
+                boxShadow: [
+                  HiwGold.haloGlow(blur: 16.r, spread: 2.r, opacity: 0.55),
+                ],
               ),
-            ],
-          ),
-          child: Icon(Icons.person_rounded,
-              color: accent, size: 30.r),
-        ),
-        Positioned(
-          bottom: -8.h,
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
-            decoration: BoxDecoration(
-              color: accent,
-              borderRadius: BorderRadius.circular(10.r),
-            ),
-            child: Text(
-              'Lv. $level',
-              style: TextStyle(
-                color: accent.computeLuminance() > 0.4
-                    ? Colors.black
-                    : Colors.white,
-                fontSize: 10.sp,
-                fontWeight: FontWeight.w800,
+              padding: EdgeInsets.all(2.5.w),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).cardColor,
+                ),
+                child: Center(
+                  child: Icon(Icons.person_rounded,
+                      color: HiwGold.warmGold, size: 30.r),
+                ),
               ),
             ),
-          ),
-        ),
-      ],
+            // Floating Crown Insignia
+            Positioned(
+              top: -4.h,
+              right: -4.w,
+              child: Container(
+                padding: EdgeInsets.all(3.r),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: HiwGold.badgeGradient,
+                  border: Border.all(color: Colors.white, width: 1.5.w),
+                  boxShadow: [
+                    HiwGold.subtleGlow(blur: 6.r, opacity: 0.4),
+                  ],
+                ),
+                child: Text(
+                  '👑',
+                  style: TextStyle(fontSize: 10.sp),
+                ),
+              ),
+            ),
+            // Bottom Gold Pill
+            Positioned(
+              bottom: -8.h,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+                decoration: BoxDecoration(
+                  gradient: HiwGold.buttonGradient,
+                  borderRadius: BorderRadius.circular(10.r),
+                  border: Border.all(color: Colors.white, width: 1.w),
+                  boxShadow: [
+                    HiwGold.subtleGlow(blur: 6.r, opacity: 0.35),
+                  ],
+                ),
+                child: Text(
+                  'PRO • Lv. $level',
+                  style: TextStyle(
+                    color: const Color(0xFF381A00),
+                    fontSize: 9.5.sp,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ),
+          ] else ...[
+            // Standard Free Avatar Badge
+            Container(
+              width: 56.w,
+              height: 56.h,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accent.withValues(alpha: 0.15),
+                border: Border.all(color: accent, width: 2.w),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.35),
+                    blurRadius: 12.r,
+                  ),
+                ],
+              ),
+              child: Icon(Icons.person_rounded,
+                  color: accent, size: 30.r),
+            ),
+            Positioned(
+              bottom: -8.h,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 2.h),
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Text(
+                  'Lv. $level',
+                  style: TextStyle(
+                    color: accent.computeLuminance() > 0.4
+                        ? Colors.black
+                        : Colors.white,
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -1530,24 +1776,24 @@ class _FoodScreenState extends State<FoodScreen> {
   }
 
   Widget _shopButton() => Positioned(
-        right: 20,
-        bottom: 95, // 📏 ABOVE BOTTOM NAV
-        child: FloatingActionButton(
+        right: 20.w,
+        bottom: 95.h,
+        child: FloatingActionButton.small(
           heroTag: 'shop_fab',
           backgroundColor:
-              Colors.orange.withValues(alpha: 0.8), // 🎨 FESTIVE ORANGE
+              Colors.orange.withValues(alpha: 0.85), // 🎨 FESTIVE ORANGE
           elevation: 4,
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const PurchasesScreen()),
           ),
-          child: const Icon(Icons.shopping_cart, color: Colors.white, size: 24),
+          child: const Icon(Icons.shopping_cart, color: Colors.white, size: 20),
         ),
       );
 
   Widget _questButton() => Positioned(
-        left: 20,
-        bottom: 95,
+        left: 20.w,
+        bottom: 95.h,
         child: FloatingActionButton(
           heroTag: 'quest_fab',
           backgroundColor: Colors.cyan.withValues(alpha: 0.8),

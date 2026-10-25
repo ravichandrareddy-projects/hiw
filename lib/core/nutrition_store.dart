@@ -2,6 +2,7 @@
 import 'package:hive/hive.dart';
 import 'food_item.dart';
 import '../hive/food_hive_model.dart';
+import '../services/cloud_sync_service.dart';
 
 class NutritionStore {
   static final NutritionStore _instance = NutritionStore._internal();
@@ -49,6 +50,7 @@ class NutritionStore {
   void setDailyTargetCalories(int calories) {
     _dailyTargetCalories = calories;
     _metaBox.put('dailyTargetCalories', calories);
+    _pushTargets();
   }
 
   // =============================
@@ -65,16 +67,29 @@ class NutritionStore {
   void setProteinTargetG(int v) {
     _proteinTargetG = v;
     _metaBox.put('proteinTargetG', v);
+    _pushTargets();
   }
 
   void setFiberTargetG(int v) {
     _fiberTargetG = v;
     _metaBox.put('fiberTargetG', v);
+    _pushTargets();
   }
 
   void setHydrationTargetMl(int v) {
     _hydrationTargetMl = v;
     _metaBox.put('hydrationTargetMl', v);
+    _pushTargets();
+  }
+
+  /// Best-effort cloud mirror of targets. Fire-and-forget: never
+  /// awaited, no-ops offline/unconfigured, local Hive is the truth.
+  void _pushTargets() {
+    CloudSyncService().syncUserProfile(
+      dailyCalories:
+          _dailyTargetCalories > 0 ? _dailyTargetCalories : null,
+      waterGoalMl: _hydrationTargetMl > 0 ? _hydrationTargetMl : null,
+    );
   }
 
   void _loadTargets() {
@@ -133,6 +148,16 @@ class NutritionStore {
     totalFats += food.fats;
 
     _foodBox.add(FoodHive.fromFoodItem(food));
+
+    // Best-effort cloud mirror. Fire-and-forget: no-ops offline.
+    CloudSyncService().syncMealLog(
+      foodName: food.name,
+      calories: food.calories,
+      protein: food.protein,
+      carbs: food.carbs,
+      fats: food.fats,
+      mealType: food.mealType.name,
+    );
   }
 
   List<FoodItem> get todayFoods => List.unmodifiable(_todayFoods);
